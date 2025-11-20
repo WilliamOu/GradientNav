@@ -1,0 +1,7 @@
+=============================
+Patch History For GradientNav
+=============================
+
+Version 0.0.1.0 - Nov 19, 2025
+- Implemented core application manager skeleton.
+- Ported reusable PointingDSP assets (prefabs, shaders, orientation pillars, miscellaneous assets).
