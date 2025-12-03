@@ -1,0 +1,11 @@
+=============================
+Patch History For GradientNav
+=============================
+
+Version 0.0.2.0 - Nov 19, 2025
+- Imported reusable PointingDSP assets (prefabs, shaders, orientation pillars, miscellaneous assets).
+- Imported standard libraries (QuickOutline, SteamVR).
+- Added test scene with basic gradient function.
+
+Version 0.0.1.0 - Nov 19, 2025
+- Implemented core application manager skeleton.
