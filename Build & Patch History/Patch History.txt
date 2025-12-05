@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 0.0.3.0 - Dec 4, 2025
+- Added VR test scene with basic gradient function (currently faulty).
+
 Version 0.0.2.0 - Nov 19, 2025
 - Imported reusable PointingDSP assets (prefabs, shaders, orientation pillars, miscellaneous assets).
 - Imported standard libraries (QuickOutline, SteamVR).
