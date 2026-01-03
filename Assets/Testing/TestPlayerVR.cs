@@ -6,11 +6,34 @@ public class TestPlayerVR : MonoBehaviour
 {
     [SerializeField] private TMP_Text colorText;
     [SerializeField] private Image colorBox;
-    [SerializeField] private Transform cameraTransform;
+    
+    // 1. We specifically need the Head/Camera transform, not the Root transform
+    [Tooltip("Assign the SteamVR Camera (usually labeled 'Camera' or 'Head') here")]
+    [SerializeField] private Transform cameraTransform; 
+
+    void Start()
+    {
+        // Fallback: If you forgot to assign it in Inspector, find the active Main Camera
+        if (cameraTransform == null)
+        {
+            if (Camera.main != null)
+            {
+                cameraTransform = Camera.main.transform;
+            }
+            else
+            {
+                Debug.LogError("No Camera assigned to TestPlayerVR script!");
+                enabled = false;
+            }
+        }
+    }
 
     void Update()
     {
-        float intensity01 = PosToIntensity(transform.position);
+        if (cameraTransform == null) return;
+
+        // 2. Use cameraTransform.position, NOT transform.position
+        float intensity01 = IntensityFunction(cameraTransform.position);
         int intensity255 = Mathf.RoundToInt(intensity01 * 255f);
 
         if (colorText != null)
@@ -18,30 +41,29 @@ public class TestPlayerVR : MonoBehaviour
             colorText.text = $"Intensity: {intensity01:F3} ({intensity255})";
         }
 
+        // 3. Ensure Alpha is 1 so it's actually visible
         Color c = new Color(intensity01, intensity01, intensity01, 1f);
 
-        colorBox.color = c;
+        if (colorBox != null)
+        {
+            colorBox.color = c;
+        }
     }
 
-    // Note to self: this is a TEST function. DO NOT COPY-PASTE THIS WITHOUT MODIFICATION
-    // TODO: Implement position offset
-    float PosToIntensity(Vector3 worldPos)
+    float IntensityFunction(Vector3 worldPos)
     {
-        float x = worldPos.x;
-        float z = worldPos.z;
+        // FIX: Use X and Z for the floor plane. Ignore Y (height).
+        float distance = Vector2.Distance(new Vector2(worldPos.x, worldPos.z), Vector2.zero);
 
-        float sigmaX = 2f;
-        float sigmaZ = 2f;
+        // OPTION A: Linear (Recommended)
+        // 1.0 at center, 0.0 at 2.5m away.
+        // float maxDistance = 2.5f;
+        // float intensity = 1f - (distance / maxDistance);
 
-        float dx = x;
-        float dz = z;
+        // OPTION B: Gaussian (What you are using)
+        float sigma = 1f;
+        float intensity = Mathf.Exp(-(distance * distance) / (2f * sigma * sigma));
 
-        float ex = (dx * dx) / (2f * sigmaX * sigmaX);
-        float ez = (dz * dz) / (2f * sigmaZ * sigmaZ);
-
-        float g = Mathf.Exp(-(ex + ez));  // peak = 1 at (0,0)
-
-        // Safety clamp
-        return Mathf.Clamp01(g);
+        return Mathf.Clamp01(intensity);
     }
 }

@@ -8,6 +8,9 @@ public class TestPlayer : MonoBehaviour
     [SerializeField] private Image colorBox;
     [SerializeField] private Transform cameraTransform;
 
+    [SerializeField] private float maxDistance = 8f;
+    [SerializeField] private bool useGaussian = true;
+
     CharacterController controller;
 
     float moveSpeed = 6f;
@@ -45,22 +48,27 @@ public class TestPlayer : MonoBehaviour
     // TODO: Implement position offset
     float PosToIntensity(Vector3 worldPos)
     {
-        float x = worldPos.x;
-        float z = worldPos.z;
+        // 1. Calculate distance from center (0,0) ignoring height (y)
+        float distance = Vector2.Distance(new Vector2(worldPos.x, worldPos.z), Vector2.zero);
+        // Note: If you want 3D distance including height, use Vector3.Distance(worldPos, Vector3.zero)
 
-        float sigmaX = 2f;
-        float sigmaZ = 2f;
+        if (useGaussian)
+        {
+            // --- OPTION A: Gaussian (Bell Curve) ---
+            // If you stick with this, increase sigma to ~3.5f or 4.0f
+            float sigma = 3.5f;
+            float g = Mathf.Exp(-(distance * distance) / (2f * sigma * sigma));
+            return Mathf.Clamp01(g);
+        }
+        else
+        {
+            // --- OPTION B: Linear (Cone) ---
+            // 1.0 at center, 0.0 at maxDistance. Constant slope.
+            // This is usually easier for participants to "feel" the gradient.
+            float intensity = 1f - (distance / maxDistance);
 
-        float dx = x;
-        float dz = z;
-
-        float ex = (dx * dx) / (2f * sigmaX * sigmaX);
-        float ez = (dz * dz) / (2f * sigmaZ * sigmaZ);
-
-        float g = Mathf.Exp(-(ex + ez));  // peak = 1 at (0,0)
-
-        // Safety clamp
-        return Mathf.Clamp01(g);
+            return Mathf.Clamp01(intensity);
+        }
     }
 
     void HandleMouseLook()
@@ -94,5 +102,4 @@ public class TestPlayer : MonoBehaviour
         Vector3 velocity = move * moveSpeed + Vector3.up * verticalVelocity;
         controller.Move(velocity * Time.deltaTime);
     }
-
 }

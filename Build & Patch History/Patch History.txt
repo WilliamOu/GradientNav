@@ -2,6 +2,13 @@
 Patch History For GradientNav
 =============================
 
+Version 0.1.0.0 - Jan 2, 2026
+- Added player spawn and UI control.
+- Added data logging functionality.
+- Added settings and associated save/load functionality.
+- Added basic test gamemode with randomized spawn point and gaussian center.
+- Added session data handling.
+
 Version 0.0.3.0 - Dec 4, 2025
 - Added VR test scene with basic gradient function (currently faulty).
 
