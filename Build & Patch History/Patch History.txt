@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 0.1.1.1 - Jan 5, 2026
+- Adjusted Gaussian scale.
+
 Version 0.1.1.0 - Jan 5, 2026
 - Added settings for enabling/disabling the Desktop player's X and Y rotation.
 - Added a setting for the success threshold.

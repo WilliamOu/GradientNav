@@ -146,7 +146,7 @@ public class PlayerManager
                 // Sigma controls the spread
                 // Rule of thumb: At distance = sigma, intensity is ~0.60. At 2*sigma, it's ~0.13.
                 // Set sigma so the edge of the map (mapRadius) is 3 standard deviations (intensity ~0)
-                float sigma = mapRadius / 3f;
+                float sigma = mapRadius;
                 intensity = Mathf.Exp(-(distance * distance) / (2f * sigma * sigma));
                 break;
 
