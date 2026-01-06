@@ -16,6 +16,7 @@ public class ClosingSceneManager : MonoBehaviour
     
     void Start()
     {
+        Cursor.lockState = CursorLockMode.None;
         ExitButton.onClick.AddListener(CloseApplication);
     }
 

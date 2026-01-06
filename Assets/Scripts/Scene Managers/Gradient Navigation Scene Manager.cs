@@ -1,15 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
-using Valve.VR.InteractionSystem;
 
 // TODO: The following gamemode is a TEST gamemode. Ask lab for further implementation details
 public class GradientNavigationSceneManager : MonoBehaviour
 {
     [Header("Trial Config")]
     [SerializeField] private float minStartDistance = 3.0f; // Don't spawn player on top of goal
-    [SerializeField] private float successThreshold = 0.90f; // 90% brightness = Win
+    [SerializeField] private InputActionProperty vrTriggerAction;
+    private bool wasTriggerDown = false;
 
     // State
     private int attemptsRemaining;
@@ -30,6 +31,11 @@ public class GradientNavigationSceneManager : MonoBehaviour
         // Start Logging
         AppManager.Instance.Logger.BeginLogging();
         isTrialActive = true;
+
+        if (vrTriggerAction != null && vrTriggerAction.action != null)
+        {
+            vrTriggerAction.action.Enable();
+        }
     }
 
     private void Update()
@@ -43,7 +49,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         if (timeRemaining <= 0)
         {
             Debug.Log("[Trial] Time Expired.");
-            EndTrial(false);
+            HandleSubmission();
             return;
         }
 
@@ -97,20 +103,51 @@ public class GradientNavigationSceneManager : MonoBehaviour
     private bool GetSubmitInput()
     {
         // Desktop
-        if (!AppManager.Instance.Session.IsVRMode && Input.GetKeyDown(KeyCode.Return)) return true;
+        if (/*!AppManager.Instance.Session.IsVRMode && */Input.GetKeyDown(KeyCode.Return)) return true;
 
-        // VR Placeholder
-        // Unity's legacy Input system maps most VR triggers to "Fire1" or "Joystick Button 0"
-        // TODO: Replace once new Input System / OpenXR is set up
-        else if (AppManager.Instance.Session.IsVRMode && Input.GetButtonDown("Fire1")) return true;
+        // VR Check
+        if (AppManager.Instance.Session.IsVRMode && vrTriggerAction.action != null)
+        {
+            // DEBUG: Uncomment this line to see if your controller is being detected at all
+            // Debug.Log($"Trigger Value: {vrTriggerAction.action.ReadValue<float>()}");
+
+            // Instead of WasPressedThisFrame(), check if the trigger is pulled past a threshold (e.g., 50%)
+            // We use a 'wasPressed' flag or similar logic if you want a "single frame" click, 
+            // but for a simple submit, just ensuring it wasn't held last frame is enough.
+
+            bool isTriggerDown = vrTriggerAction.action.ReadValue<float>() > 0.5f;
+
+            // Simple distinct press logic (requires a class-level bool variable 'wasTriggerDown')
+            if (isTriggerDown && !wasTriggerDown)
+            {
+                wasTriggerDown = true;
+                return true;
+            }
+            else if (!isTriggerDown)
+            {
+                wasTriggerDown = false;
+            }
+        }
 
         return false;
+    }
+
+    private void OnEnable()
+    {
+        // Turn on the listening when the script turns on
+        if (vrTriggerAction.action != null) vrTriggerAction.action.Enable();
+    }
+
+    private void OnDisable()
+    {
+        // Turn it off to prevent memory leaks or errors
+        if (vrTriggerAction.action != null) vrTriggerAction.action.Disable();
     }
 
     private void HandleSubmission()
     {
         float currentIntensity = AppManager.Instance.Player.StimulusIntensity;
-        bool isSuccess = currentIntensity >= successThreshold;
+        bool isSuccess = currentIntensity >= AppManager.Instance.Settings.SuccessThreshold;
 
         if (isSuccess)
         {

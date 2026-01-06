@@ -2,6 +2,15 @@
 Patch History For GradientNav
 =============================
 
+Version 0.1.1.0 - Jan 5, 2026
+- Added settings for enabling/disabling the Desktop player's X and Y rotation.
+- Added a setting for the success threshold.
+- Fixed a duplicate camera issue in the Title and Closing Screens.
+- Fixed a bug causing the Closing Screen cursor to remain locked.
+- Fixed UI issues with the gradient color on the VR player. 
+- Adjusted test gamemode settings to accomodate for unimplemented VR input system. 
+- Added XRI Sample Scene for OpenXR Player reference.
+
 Version 0.1.0.0 - Jan 2, 2026
 - Added player spawn and UI control.
 - Added data logging functionality.

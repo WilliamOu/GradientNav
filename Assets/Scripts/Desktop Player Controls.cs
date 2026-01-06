@@ -32,11 +32,18 @@ public class DesktopPlayerControls : MonoBehaviour
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
 
-        cameraPitch -= mouseY;
-        cameraPitch = Mathf.Clamp(cameraPitch, -89f, 89f);
+        if (AppManager.Instance.Settings.EnableMouseY)
+        {
+            cameraPitch -= mouseY;
+            cameraPitch = Mathf.Clamp(cameraPitch, -89f, 89f);
+        }
 
         cameraTransform.localRotation = Quaternion.Euler(cameraPitch, 0f, 0f);
-        transform.Rotate(Vector3.up * mouseX);
+
+        if (AppManager.Instance.Settings.EnableMouseX)
+        {
+            transform.Rotate(Vector3.up * mouseX);
+        }
     }
 
     void HandleMovement()

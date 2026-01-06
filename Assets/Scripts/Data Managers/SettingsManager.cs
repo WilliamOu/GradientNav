@@ -52,13 +52,16 @@ public class SettingsManager
     // Cached public values
     // TODO: Add max and minimum intensity settings, and closeness check value (how close the current color has to be to the actual max brightness value)
     public float MouseSensitivity { get; private set; }
+    public bool EnableMouseX { get; private set; }
+    public bool EnableMouseY { get; private set; }
     public float MoveSpeed { get; private set; }
     public float MapLength { get; private set; }
     public float MapWidth { get; private set; }
     public float TimeToSeek { get; private set; }
+    public float SuccessThreshold { get; private set; }
     public float DataLogInterval { get; private set; }
     public int BufferSizeBeforeWrite { get; private set; }
-    public bool EnableSafetyWalls { get; private set; }
+    public bool EnableSafetyWalls { get; private set; } // TODO: Implement
     public bool ExperimentalMode { get; private set; }
     public int ParticipantMaxTestCount { get; private set; }
     public int GaussianTypeIndex { get; private set; }
@@ -80,6 +83,20 @@ public class SettingsManager
             Value = 1f,
             Min = float.MinValue,
             Max = float.MaxValue,
+        });
+
+        SettingsList.Add(new BoolSetting
+        {
+            Name = "Enable Mouse X",
+            Description = "(Desktop Only) Allow the first person player controller to look side-to-side.",
+            Value = true,
+        });
+
+        SettingsList.Add(new BoolSetting
+        {
+            Name = "Enable Mouse Y",
+            Description = "(Desktop Only) Allow the first person player controller to look up and down.",
+            Value = false,
         });
 
         SettingsList.Add(new FloatSetting
@@ -116,6 +133,15 @@ public class SettingsManager
             Value = 30f,
             Min = 0f,
             Max = 9999f,
+        });
+
+        SettingsList.Add(new FloatSetting
+        {
+            Name = "Success Threshold",
+            Description = "The brightness, as a percent of the maximum brightness, required for a test to succeeed.",
+            Value = 0.9f,
+            Min = 0f,
+            Max = 1f,
         });
 
         SettingsList.Add(new FloatSetting
@@ -172,10 +198,13 @@ public class SettingsManager
     {
         // This maps the "Stringly Typed" list to "Strongly Typed" fields
         MouseSensitivity = GetSetting<FloatSetting>("Mouse Sensitivity")?.Value ?? 1.0f;
+        EnableMouseX = GetSetting<BoolSetting>("Enable Mouse X")?.Value ?? true;
+        EnableMouseY = GetSetting<BoolSetting>("Enable Mouse Y")?.Value ?? false;
         MoveSpeed = GetSetting<FloatSetting>("Move Speed")?.Value ?? 8.0f;
         MapLength = GetSetting<FloatSetting>("Map Length")?.Value ?? 1.0f;
         MapWidth = GetSetting<FloatSetting>("Map Width")?.Value ?? 10.0f;
         TimeToSeek = GetSetting<FloatSetting>("Time To Seek")?.Value ?? 30.0f;
+        SuccessThreshold = GetSetting<FloatSetting>("Success Threshold")?.Value ?? 0.9f;
         DataLogInterval = GetSetting<FloatSetting>("Data Log Interval")?.Value ?? 0.011f;
         BufferSizeBeforeWrite = GetSetting<IntegerSetting>("Buffer Size Before Write")?.Value ?? LogManager.MinBufferSize;
         EnableSafetyWalls = GetSetting<BoolSetting>("Enable Safety Walls")?.Value ?? true;

@@ -116,14 +116,13 @@ public class LogManager
 
         // Capture
         Transform cameraT = AppManager.Instance.Player.CameraPosition();
-        float currentIntensity = AppManager.Instance.Player.StimulusIntensity;
 
         activeBuffer.Add(new LogFrame
         {
             GlobalTime = Time.time,
             HeadPos = cameraT.position,
             HeadRotEuler = cameraT.eulerAngles,
-            StimulusIntensity = currentIntensity
+            StimulusIntensity = AppManager.Instance.Player.StimulusIntensity
         });
 
         // Safety Valve Flush

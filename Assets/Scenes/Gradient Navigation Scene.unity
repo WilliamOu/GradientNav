@@ -166,6 +166,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 65308a045665071418cccc1a28bf1c61, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  minStartDistance: 3
+  vrTriggerAction:
+    m_UseReference: 1
+    m_Action:
+      m_Name: Vr Trigger
+      m_Type: 0
+      m_ExpectedControlType: 
+      m_Id: 21fe8cba-eddf-40bb-bad9-866d520f11c9
+      m_Processors: 
+      m_Interactions: 
+      m_SingletonActionBindings:
+      - m_Name: 
+        m_Id: cce1e686-e17d-4ce0-bedd-12162c28a6c0
+        m_Path: 
+        m_Interactions: 
+        m_Processors: 
+        m_Groups: 
+        m_Action: Vr Trigger
+        m_Flags: 0
+      m_Flags: 0
+    m_Reference: {fileID: 83097790271614945, guid: c348712bda248c246b8c49b3db54643f, type: 3}
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
