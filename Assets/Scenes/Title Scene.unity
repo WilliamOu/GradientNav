@@ -5474,7 +5474,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cfbe1f26a1a0e4443b3e2650379b19f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  vrPlayerPrefab: {fileID: 6461232104286603376, guid: 3abdb861cd3e43e479a6892f9493875f, type: 3}
+  vrPlayerPrefab: {fileID: 2637249759349167990, guid: 339370d656ea32c408dba1e3385e5989, type: 3}
   desktopPlayerPrefab: {fileID: 7411245076514368564, guid: 762ca322a0161304fa0c7c43cdca2852, type: 3}
 --- !u!1 &1568712932
 GameObject:

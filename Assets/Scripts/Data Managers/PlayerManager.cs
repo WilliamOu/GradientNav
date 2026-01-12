@@ -65,10 +65,10 @@ public class PlayerManager
         {
             // Small gauge in corner
             activeUI.GradientImage.rectTransform.sizeDelta = new Vector2(200, 200);
-            activeUI.GradientImage.rectTransform.anchorMin = new Vector2(1, 0); // Bottom Right
+            activeUI.GradientImage.rectTransform.anchorMin = new Vector2(1, 0);
             activeUI.GradientImage.rectTransform.anchorMax = new Vector2(1, 0);
             activeUI.GradientImage.rectTransform.pivot = new Vector2(1, 0);
-            activeUI.GradientImage.rectTransform.anchoredPosition = new Vector2(-20, 20); // Margin
+            activeUI.GradientImage.rectTransform.anchoredPosition = new Vector2(-20, 20);
         }
         else
         {
@@ -76,8 +76,8 @@ public class PlayerManager
             // Setting anchors to 0-1 stretches it to fill parent
             activeUI.GradientImage.rectTransform.anchorMin = Vector2.zero;
             activeUI.GradientImage.rectTransform.anchorMax = Vector2.one;
-            activeUI.GradientImage.rectTransform.offsetMin = Vector2.zero; // Left/Bottom
-            activeUI.GradientImage.rectTransform.offsetMax = Vector2.zero; // Right/Top
+            activeUI.GradientImage.rectTransform.offsetMin = Vector2.zero;
+            activeUI.GradientImage.rectTransform.offsetMax = Vector2.zero;
         }
     }
 
@@ -112,7 +112,6 @@ public class PlayerManager
         // Update Color
         if (activeUI.GradientImage != null)
         {
-            // Assuming we want white with alpha transparency, or solid gray?
             // Usually Ganzfeld is solid color changing brightness.
             Color c = new Color(intensity01, intensity01, intensity01, 1f);
             activeUI.GradientImage.color = c;
@@ -135,10 +134,6 @@ public class PlayerManager
 
         float intensity = 0f;
 
-        // Select Logic
-        // typeIndex 0 = Standard (Gaussian)
-        // typeIndex 1 = Linear (Let's treat this as Linear for now based on your list?)
-        // typeIndex 2 = Inverse
 
         switch (typeIndex)
         {
@@ -156,7 +151,7 @@ public class PlayerManager
                 break;
 
             case 2: // Inverse (Dark at center, bright at edge)
-                sigma = mapRadius / 3f;
+                sigma = mapRadius;
                 intensity = 1f - Mathf.Exp(-(distance * distance) / (2f * sigma * sigma));
                 break;
         }

@@ -2,6 +2,10 @@
 Patch History For GradientNav
 =============================
 
+Version 0.1.2.0 - Jan 5, 2026
+- Transitioned to XRI VR player control scheme.
+- Fixed VR input scheme.
+
 Version 0.1.1.1 - Jan 5, 2026
 - Adjusted Gaussian scale.
 

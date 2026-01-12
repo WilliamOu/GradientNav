@@ -318,7 +318,7 @@ GameObject:
   - component: {fileID: 9045668538292925845}
   - component: {fileID: 3462029618931856452}
   m_Layer: 0
-  m_Name: XRRig (VR Player)
+  m_Name: XRRig (Deprecated VR Player)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

@@ -9,8 +9,10 @@ public class GradientNavigationSceneManager : MonoBehaviour
 {
     [Header("Trial Config")]
     [SerializeField] private float minStartDistance = 3.0f; // Don't spawn player on top of goal
-    [SerializeField] private InputActionProperty vrTriggerAction;
-    private bool wasTriggerDown = false;
+    public InputActionProperty leftTriggerInput;
+    public InputActionProperty rightTriggerInput;
+    public InputActionProperty leftGripInput;
+    public InputActionProperty rightGripInput;
 
     // State
     private int attemptsRemaining;
@@ -31,11 +33,6 @@ public class GradientNavigationSceneManager : MonoBehaviour
         // Start Logging
         AppManager.Instance.Logger.BeginLogging();
         isTrialActive = true;
-
-        if (vrTriggerAction != null && vrTriggerAction.action != null)
-        {
-            vrTriggerAction.action.Enable();
-        }
     }
 
     private void Update()
@@ -105,43 +102,18 @@ public class GradientNavigationSceneManager : MonoBehaviour
         // Desktop
         if (/*!AppManager.Instance.Session.IsVRMode && */Input.GetKeyDown(KeyCode.Return)) return true;
 
+        float leftTriggerValue = leftTriggerInput.action.ReadValue<float>();
+        float rightTriggerValue = rightTriggerInput.action.ReadValue<float>();
+        float leftGripValue = leftGripInput.action.ReadValue<float>();
+        float rightGripValue = rightGripInput.action.ReadValue<float>();
+
         // VR Check
-        if (AppManager.Instance.Session.IsVRMode && vrTriggerAction.action != null)
+        if (AppManager.Instance.Session.IsVRMode && (leftTriggerValue > 0.5f || rightTriggerValue > 0.5f))
         {
-            // DEBUG: Uncomment this line to see if your controller is being detected at all
-            // Debug.Log($"Trigger Value: {vrTriggerAction.action.ReadValue<float>()}");
-
-            // Instead of WasPressedThisFrame(), check if the trigger is pulled past a threshold (e.g., 50%)
-            // We use a 'wasPressed' flag or similar logic if you want a "single frame" click, 
-            // but for a simple submit, just ensuring it wasn't held last frame is enough.
-
-            bool isTriggerDown = vrTriggerAction.action.ReadValue<float>() > 0.5f;
-
-            // Simple distinct press logic (requires a class-level bool variable 'wasTriggerDown')
-            if (isTriggerDown && !wasTriggerDown)
-            {
-                wasTriggerDown = true;
-                return true;
-            }
-            else if (!isTriggerDown)
-            {
-                wasTriggerDown = false;
-            }
+            return true;
         }
 
         return false;
-    }
-
-    private void OnEnable()
-    {
-        // Turn on the listening when the script turns on
-        if (vrTriggerAction.action != null) vrTriggerAction.action.Enable();
-    }
-
-    private void OnDisable()
-    {
-        // Turn it off to prevent memory leaks or errors
-        if (vrTriggerAction.action != null) vrTriggerAction.action.Disable();
     }
 
     private void HandleSubmission()
