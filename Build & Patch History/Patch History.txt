@@ -2,7 +2,11 @@
 Patch History For GradientNav
 =============================
 
-Version 0.1.2.0 - Jan 5, 2026
+Version 0.1.3.0 - Jan 13, 2026
+- Changed TMPro shaders to ignore Z-Test, forcing UI text on world space Canvases to render over the world.
+- Adjusted the Experimental Mode UI for the VR player. 
+
+Version 0.1.2.0 - Jan 11, 2026
 - Transitioned to XRI VR player control scheme.
 - Fixed VR input scheme.
 

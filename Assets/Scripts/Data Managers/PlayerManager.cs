@@ -61,9 +61,9 @@ public class PlayerManager
             activeUI.IntensityGauge.gameObject.SetActive(isExperimental);
 
         // RectTransform resizing
-        if (isExperimental)
+        if (isExperimental && !AppManager.Instance.Session.IsVRMode)
         {
-            // Small gauge in corner
+            // Small gauge in corner (experimental UI for VR player was manually adjusted, so skip this for VR specifically)
             activeUI.GradientImage.rectTransform.sizeDelta = new Vector2(200, 200);
             activeUI.GradientImage.rectTransform.anchorMin = new Vector2(1, 0);
             activeUI.GradientImage.rectTransform.anchorMax = new Vector2(1, 0);
