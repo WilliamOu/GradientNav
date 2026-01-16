@@ -9,7 +9,7 @@ The participant is tasked with a sensory substitution/augmentation task. Only ab
 Gamemodes are currently under development. The current study supports a basic study with a few different luminance functions. The center is randomized, and the brightest point must be found under a time trial. 
 
 # Source Code & Unity Asset Store Policy
-In adherence with the Unity Asset Store Terms of Service, which prohibits the redistribution of Store assets, several Package Manager Assets and Asset Store Plugins have not been included in this open-source build. As such, the project does not compile immediately upon download. Perform the following steps if you wish to reconstruct the project:
+In adherence with the Unity Asset Store Terms of Service which prohibits the redistribution of Store assets, several Package Manager Assets and Asset Store Plugins have not been included in this open-source build. As such, the project does not compile immediately upon download. Perform the following steps if you wish to reconstruct the project:
 
 1) Install the following assets:
     - From Window > Asset Store:
