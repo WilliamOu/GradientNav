@@ -2,13 +2,25 @@
 Patch History For GradientNav
 =============================
 
+Version 0.1.4.0 - Jan 16, 2026
+- Added a blackout screen.
+- Added an orientation gamemode for the VR player, specifying a coordinate to walk towards.
+- Added a pause screen.
+- Added VR controller locomotion for controller input.
+- Adjusted primary gamemode to support a set of randomized trials and track a state machine.
+- Adjusted VR input scheme to not trigger every update frame. 
+- Moved VR input keybinds to the App Manager.
+- Fixed an issue where the UI text would not render over the gradient and the blackout screen.
+- Fixed an issue where the gradient and the blackout screen where marginally transparent.
+- Removed deprecated XR Player prefab.
+
 Version 0.1.3.0 - Jan 13, 2026
 - Changed TMPro shaders to ignore Z-Test, forcing UI text on world space Canvases to render over the world.
 - Adjusted the Experimental Mode UI for the VR player. 
 
 Version 0.1.2.0 - Jan 11, 2026
 - Transitioned to XRI VR player control scheme.
-- Fixed VR input scheme.
+- Added working VR input scheme. 
 
 Version 0.1.1.1 - Jan 5, 2026
 - Adjusted Gaussian scale.

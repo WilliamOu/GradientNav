@@ -12,12 +12,11 @@ public class LogManager
 
     public struct LogFrame
     {
-        public float GlobalTime;        // Time.time
-        public Vector3 HeadPos;         // Player Head Position
-        public Vector3 HeadRotEuler;    // Player Rotation (Euler is easier for Python analysis than Quat)
-        public float StimulusIntensity; // The brightness value they saw
-
-        // TODO: Add inputs here later if needed
+        public string Event;          // empty for normal frames; set for events
+        public float GlobalTime;
+        public Vector3 HeadPos;
+        public Vector3 HeadRotEuler;
+        public float StimulusIntensity;
     }
 
     // Double buffering logic
@@ -26,7 +25,10 @@ public class LogManager
     private bool paused = false;
     private string fullFilePath;
     private float logTimer;
-    private int bufferLimit;
+    private int bufferLimit; 
+
+    private readonly object fileWriteLock = new object();
+    private Task lastWriteTask = Task.CompletedTask;
 
     public LogManager()
     {
@@ -63,7 +65,7 @@ public class LogManager
 
         // Write Header (Synchronous is fine here because it happens once)
         // Handle VR vs Desktop headers always log same data
-        string header = "GlobalTime,HeadX,HeadY,HeadZ,RotX,RotY,RotZ,StimulusIntensity\n";
+        string header = "Event,GlobalTime,HeadX,HeadY,HeadZ,RotX,RotY,RotZ,StimulusIntensity\n";
         File.WriteAllText(fullFilePath, header);
 
         // Reset
@@ -84,8 +86,11 @@ public class LogManager
         if (!isLogging) return;
         isLogging = false;
 
-        // Flush whatever is left
         if (activeBuffer.Count > 0) FlushBufferToDisk();
+
+        // Ensure all queued writes finish before we consider logging done
+        try { lastWriteTask.Wait(); }
+        catch (Exception e) { Debug.LogError($"[LogManager] Final write wait failed: {e.Message}"); }
 
         Debug.Log("[LogManager] Recording stopped.");
     }
@@ -134,38 +139,73 @@ public class LogManager
         }
     }
 
-    private async void FlushBufferToDisk()
+    public void LogEvent(string input)
     {
-        // Move data to a temp list so the main thread can keep recording to a new list
+        if (!isLogging) return;
+
+        string evt = (input ?? "").Replace("\n", " ").Replace("\r", " ").Replace(",", ";");
+
+        Transform cameraT = AppManager.Instance.Player.CameraPosition();
+        Vector3 pos = cameraT != null ? cameraT.position : Vector3.zero;
+        Vector3 rot = cameraT != null ? cameraT.eulerAngles : Vector3.zero;
+
+        activeBuffer.Add(new LogFrame
+        {
+            Event = evt,
+            GlobalTime = Time.time,
+            HeadPos = pos,
+            HeadRotEuler = rot,
+            StimulusIntensity = AppManager.Instance.Player.StimulusIntensity
+        });
+
+        if (activeBuffer.Count >= bufferLimit)
+            FlushBufferToDisk();
+    }
+
+
+    private void FlushBufferToDisk()
+    {
+        if (!isLogging && activeBuffer.Count == 0) return;
+
         List<LogFrame> dataToWrite = new List<LogFrame>(activeBuffer);
         activeBuffer.Clear();
 
-        // Process (Background Thread)
-        await Task.Run(() =>
-        {
-            try
+        // Chain writes so they run one after another
+        lastWriteTask = lastWriteTask.ContinueWith(_ =>
+            Task.Run(() =>
             {
-                StringBuilder sb = new StringBuilder(dataToWrite.Count * 100); // Pre-allocate approx size
-
-                foreach (var frame in dataToWrite)
+                try
                 {
-                    sb.Append(frame.GlobalTime.ToString("F3")).Append(",");
-                    sb.Append(frame.HeadPos.x.ToString("F3")).Append(",");
-                    sb.Append(frame.HeadPos.y.ToString("F3")).Append(",");
-                    sb.Append(frame.HeadPos.z.ToString("F3")).Append(",");
-                    sb.Append(frame.HeadRotEuler.x.ToString("F3")).Append(",");
-                    sb.Append(frame.HeadRotEuler.y.ToString("F3")).Append(",");
-                    sb.Append(frame.HeadRotEuler.z.ToString("F3")).Append(",");
-                    sb.Append(frame.StimulusIntensity.ToString("F3"));
-                    sb.AppendLine();
-                }
+                    StringBuilder sb = new StringBuilder(dataToWrite.Count * 100);
 
-                File.AppendAllText(fullFilePath, sb.ToString());
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"[LogManager] Background write failed: {e.Message}");
-            }
-        });
+                    foreach (var frame in dataToWrite)
+                    {
+                        string evt = frame.Event ?? "";
+                        evt = evt.Replace("\"", "\"\"");
+                        sb.Append("\"").Append(evt).Append("\"").Append(",");
+
+                        sb.Append(frame.GlobalTime.ToString("F3")).Append(",");
+                        sb.Append(frame.HeadPos.x.ToString("F3")).Append(",");
+                        sb.Append(frame.HeadPos.y.ToString("F3")).Append(",");
+                        sb.Append(frame.HeadPos.z.ToString("F3")).Append(",");
+                        sb.Append(frame.HeadRotEuler.x.ToString("F3")).Append(",");
+                        sb.Append(frame.HeadRotEuler.y.ToString("F3")).Append(",");
+                        sb.Append(frame.HeadRotEuler.z.ToString("F3")).Append(",");
+                        sb.Append(frame.StimulusIntensity.ToString("F3"));
+                        sb.AppendLine();
+                    }
+
+
+                    lock (fileWriteLock)
+                    {
+                        File.AppendAllText(fullFilePath, sb.ToString());
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[LogManager] Background write failed: {e.Message}");
+                }
+            })
+        ).Unwrap();
     }
 }

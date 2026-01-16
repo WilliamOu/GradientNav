@@ -64,7 +64,10 @@ public class SettingsManager
     public bool EnableSafetyWalls { get; private set; } // TODO: Implement
     public bool ExperimentalMode { get; private set; }
     public int ParticipantMaxTestCount { get; private set; }
+    public int TrialCount { get; private set; }
     public int GaussianTypeIndex { get; private set; }
+
+    // TODO: Add a setting enabling or disabling VR movement via controller
 
     public SettingsManager()
     {
@@ -185,6 +188,15 @@ public class SettingsManager
             Max = 9999,
         });
 
+        SettingsList.Add(new IntegerSetting
+        {
+            Name = "Trial Count",
+            Description = "The number of search trials.",
+            Value = 3,
+            Min = 1,
+            Max = 9999,
+        });
+
         SettingsList.Add(new EnumSetting
         {
             Name = "Gaussian Type",
@@ -210,6 +222,7 @@ public class SettingsManager
         EnableSafetyWalls = GetSetting<BoolSetting>("Enable Safety Walls")?.Value ?? true;
         ExperimentalMode = GetSetting<BoolSetting>("Experimental Mode")?.Value ?? false;
         ParticipantMaxTestCount = GetSetting<IntegerSetting>("Participant Max Test Count")?.Value ?? 1;
+        TrialCount = GetSetting<IntegerSetting>("Trial Count")?.Value ?? 3;
         GaussianTypeIndex = GetSetting<EnumSetting>("Gaussian Type")?.SelectedIndex ?? 0;
 
         // Debug.Log("Settings Cache Updated");

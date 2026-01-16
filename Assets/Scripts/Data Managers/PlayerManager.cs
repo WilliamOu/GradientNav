@@ -1,27 +1,31 @@
 using UnityEngine;
-using System;
-using UnityEngine.SceneManagement;
-using UnityEngine.UI;
-using TMPro;
 using System.Collections.Generic;
+using System.Collections;
+using Unity.VisualScripting;
+using static UnityEngine.GraphicsBuffer;
 
 // TODO: Add support for safety boundaries, since those are UI elements
-public class PlayerManager
+public class PlayerManager : MonoBehaviour
 {
     public static readonly List<string> MapTypes = new List<string> { "Standard", "Linear", "Inverse" };
 
     public bool PlayerSpawned { get; private set; }
     public float StimulusIntensity { get; private set; } = -1f;
+    public bool CanMove { get; private set; } = true;
+    public bool CanLook { get; private set; } = true;
 
     private GameObject vrPlayerPrefab;
     private GameObject desktopPlayerPrefab;
     private GameObject activePlayerInstance;
+
+    private Coroutine clearUITextCoroutine;
+
     // TODO: Move this into settings or a trial system
     // TODO: The Gaussian center and player spawn point also need to be logged
     private Vector2 targetPosition = Vector2.zero; 
     private PlayerUIReferences activeUI;
 
-    public PlayerManager(GameObject vrPlayerPrefab, GameObject desktopPlayerPrefab)
+    public void Init(GameObject vrPlayerPrefab, GameObject desktopPlayerPrefab)
     {
         this.vrPlayerPrefab = vrPlayerPrefab;
         this.desktopPlayerPrefab = desktopPlayerPrefab;
@@ -35,21 +39,26 @@ public class PlayerManager
         Vector3 spawnPos = position ?? Vector3.zero;
         Quaternion spawnRot = rotation ?? Quaternion.identity;
 
-        // Destroy old player
         if (activePlayerInstance != null)
         {
-            UnityEngine.Object.Destroy(activePlayerInstance);
+            Destroy(activePlayerInstance);
+            activePlayerInstance = null;
+            activeUI = null;
+            PlayerSpawned = false;
         }
 
-        // Instantiate
-        GameObject prefabToSpawn = (AppManager.Instance.Session.IsVRMode) ? vrPlayerPrefab : desktopPlayerPrefab;
-        GameObject newPlayer = UnityEngine.Object.Instantiate(prefabToSpawn, spawnPos, spawnRot);
+        GameObject prefabToSpawn = AppManager.Instance.Session.IsVRMode ? vrPlayerPrefab : desktopPlayerPrefab;
+        GameObject newPlayer = Instantiate(prefabToSpawn, spawnPos, spawnRot);
 
-        activeUI = newPlayer.GetComponent<PlayerUIReferences>();
+        activePlayerInstance = newPlayer;
+        activeUI = newPlayer.GetComponentInChildren<PlayerUIReferences>(true);
 
         if (activeUI == null)
         {
             Debug.LogError("PlayerManager: Spawned player is missing the 'PlayerUIReferences' component!");
+            Destroy(activePlayerInstance);
+            activePlayerInstance = null;
+            PlayerSpawned = false;
             return;
         }
 
@@ -57,28 +66,95 @@ public class PlayerManager
 
         bool isExperimental = AppManager.Instance.Settings.ExperimentalMode;
 
-        if (activeUI.IntensityGauge != null)
-            activeUI.IntensityGauge.gameObject.SetActive(isExperimental);
+        if (activeUI.UIText != null)
+            activeUI.UIText.gameObject.SetActive(isExperimental);
+
+        if (activeUI.GradientImage == null)
+        {
+            Debug.LogError("PlayerManager: PlayerUIReferences is missing GradientImage!");
+            return;
+        }
 
         // RectTransform resizing
         if (isExperimental && !AppManager.Instance.Session.IsVRMode)
         {
-            // Small gauge in corner (experimental UI for VR player was manually adjusted, so skip this for VR specifically)
             activeUI.GradientImage.rectTransform.sizeDelta = new Vector2(200, 200);
             activeUI.GradientImage.rectTransform.anchorMin = new Vector2(1, 0);
             activeUI.GradientImage.rectTransform.anchorMax = new Vector2(1, 0);
             activeUI.GradientImage.rectTransform.pivot = new Vector2(1, 0);
             activeUI.GradientImage.rectTransform.anchoredPosition = new Vector2(-20, 20);
         }
-        else
+        else if (!isExperimental)
         {
-            // Full screen overlay
-            // Setting anchors to 0-1 stretches it to fill parent
             activeUI.GradientImage.rectTransform.anchorMin = Vector2.zero;
             activeUI.GradientImage.rectTransform.anchorMax = Vector2.one;
             activeUI.GradientImage.rectTransform.offsetMin = Vector2.zero;
             activeUI.GradientImage.rectTransform.offsetMax = Vector2.zero;
         }
+
+        DisableBlackscreen();
+    }
+
+    public void ToggleMovement()
+    {
+        if (AppManager.Instance.Session.IsVRMode) return;
+        CanMove = !CanMove;
+    }
+
+    public void ToggleLook()
+    {
+        if (AppManager.Instance.Session.IsVRMode) return;
+        CanLook = !CanLook;
+    }
+
+    public void EnableUI()
+    {
+        activeUI.MainCanvas.gameObject.SetActive(true);
+        activeUI.ColorCanvas.gameObject.SetActive(true);
+    }
+
+    public void DisableUI()
+    {
+        activeUI.MainCanvas.gameObject.SetActive(false);
+        activeUI.ColorCanvas.gameObject.SetActive(false);
+    }
+
+    public void EnableBlackscreen()
+    {
+        EnableUI();
+        activeUI.Blackscreen.gameObject.SetActive(true);
+    }
+
+    public void DisableBlackscreen()
+    {
+        EnableUI();
+        activeUI.Blackscreen.gameObject.SetActive(false);
+    }
+
+    public void Teleport(float x, float z)
+    {
+        if (AppManager.Instance.Session.IsVRMode) return;
+
+        if (activePlayerInstance == null)
+        {
+            Debug.LogError("PlayerManager.Teleport called but activePlayerInstance is null. Did you SpawnPlayer()?");
+            return;
+        }
+
+        Vector3 target = new Vector3(x, activePlayerInstance.transform.position.y, z);
+
+        var cc = activePlayerInstance.GetComponent<CharacterController>();
+        if (cc != null)
+        {
+            bool wasEnabled = cc.enabled;
+            cc.enabled = false;
+            activePlayerInstance.transform.position = target;
+            cc.enabled = wasEnabled;
+            return;
+        }
+
+        // Fallback
+        activePlayerInstance.transform.position = target;
     }
 
     public Transform CameraPosition()
@@ -100,11 +176,11 @@ public class PlayerManager
         float intensity01 = CalculateIntensity(activeUI.PlayerCamera.transform.position);
 
         // Update Text
-        if (activeUI.IntensityGauge != null && activeUI.IntensityGauge.gameObject.activeSelf)
+        if (activeUI.UIText != null && activeUI.UIText.gameObject.activeSelf)
         {
             int intensity255 = Mathf.RoundToInt(intensity01 * 255f);
             Transform headpos = AppManager.Instance.Player.CameraPosition();
-            activeUI.IntensityGauge.text = $"Intensity: {intensity01:F3} ({intensity255})\n" +
+            activeUI.UIText.text = $"Intensity: {intensity01:F3} ({intensity255})\n" +
                 $"Current Position:\n{headpos.position.x:F3}, {headpos.position.z:F3}\n" +
                 $"Target Position:\n{targetPosition.x:F3}, {targetPosition.y:F3}";
         }
@@ -157,5 +233,27 @@ public class PlayerManager
         }
 
         return Mathf.Clamp01(intensity);
+    }
+
+    public void SetUIMessage(string error, Color? color = null, float errorTimeSeconds = 5f)
+    {
+        activeUI.UIText.color = color ?? Color.red;
+        activeUI.UIText.text = error ?? "";
+
+        if (clearUITextCoroutine != null)
+            StopCoroutine(clearUITextCoroutine);
+
+        if (errorTimeSeconds > 0f)
+            clearUITextCoroutine = StartCoroutine(ClearUITextAfterSeconds(errorTimeSeconds));
+    }
+
+    private IEnumerator ClearUITextAfterSeconds(float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+
+        if (activeUI.UIText != null)
+            activeUI.UIText.text = "";
+
+        clearUITextCoroutine = null;
     }
 }

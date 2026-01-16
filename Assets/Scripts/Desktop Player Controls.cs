@@ -29,6 +29,8 @@ public class DesktopPlayerControls : MonoBehaviour
 
     void HandleMouseLook()
     {
+        if (!AppManager.Instance.Player.CanLook) return;
+
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
 
@@ -48,6 +50,8 @@ public class DesktopPlayerControls : MonoBehaviour
 
     void HandleMovement()
     {
+        if (!AppManager.Instance.Player.CanMove) return; 
+
         float inputX = Input.GetAxisRaw("Horizontal");
         float inputZ = Input.GetAxisRaw("Vertical");
 

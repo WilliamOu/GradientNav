@@ -40,7 +40,7 @@ Shader "UI/Default_CustomQueueNoZTest"
 		Lighting Off
 		ZWrite Off
 		ZTest Off
-		Blend SrcAlpha OneMinusSrcAlpha
+		Blend Off
 		ColorMask [_ColorMask]
 
 		Pass
