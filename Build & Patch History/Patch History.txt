@@ -2,6 +2,12 @@
 Patch History For GradientNav
 =============================
 
+Version 0.1.5.0 - Jan 16, 2026
+- Added a setting for the scale parameter.
+- Added data logging fields for spawn and goal positions, 
+- Fixed incorrect defaults in the Settings Manager.
+- Moved state variables from game script to respective managers.
+
 Version 0.1.4.0 - Jan 16, 2026
 - Added a blackout screen.
 - Added an orientation gamemode for the VR player, specifying a coordinate to walk towards.

@@ -17,12 +17,7 @@ public class PlayerManager : MonoBehaviour
     private GameObject vrPlayerPrefab;
     private GameObject desktopPlayerPrefab;
     private GameObject activePlayerInstance;
-
     private Coroutine clearUITextCoroutine;
-
-    // TODO: Move this into settings or a trial system
-    // TODO: The Gaussian center and player spawn point also need to be logged
-    private Vector2 targetPosition = Vector2.zero; 
     private PlayerUIReferences activeUI;
 
     public void Init(GameObject vrPlayerPrefab, GameObject desktopPlayerPrefab)
@@ -66,8 +61,8 @@ public class PlayerManager : MonoBehaviour
 
         bool isExperimental = AppManager.Instance.Settings.ExperimentalMode;
 
-        if (activeUI.UIText != null)
-            activeUI.UIText.gameObject.SetActive(isExperimental);
+        /*if (activeUI.UIText != null)
+            activeUI.UIText.gameObject.SetActive(isExperimental);*/
 
         if (activeUI.GradientImage == null)
         {
@@ -162,11 +157,6 @@ public class PlayerManager : MonoBehaviour
         return activeUI != null ? activeUI.PlayerCamera.transform : null;
     }
 
-    public void SetStimulusTarget(Vector2 targetPos)
-    {
-        targetPosition = targetPos;
-    }
-
     // Update this to be called from AppManager.Update()
     public void UpdateStimulusUI()
     {
@@ -182,7 +172,7 @@ public class PlayerManager : MonoBehaviour
             Transform headpos = AppManager.Instance.Player.CameraPosition();
             activeUI.UIText.text = $"Intensity: {intensity01:F3} ({intensity255})\n" +
                 $"Current Position:\n{headpos.position.x:F3}, {headpos.position.z:F3}\n" +
-                $"Target Position:\n{targetPosition.x:F3}, {targetPosition.y:F3}";
+                $"Target Position:\n{AppManager.Instance.Session.GoalPosition.x:F3}, {AppManager.Instance.Session.GoalPosition.y:F3}";
         }
 
         // Update Color
@@ -201,7 +191,7 @@ public class PlayerManager : MonoBehaviour
         // Get Distance from Center (0,0)
         // We ignore Y (Height) for the map logic usually, treating it as a 2D floor map
         Vector2 playerPos2D = new Vector2(worldPos.x, worldPos.z);
-        float distance = Vector2.Distance(playerPos2D, targetPosition);
+        float distance = Vector2.Distance(playerPos2D, AppManager.Instance.Session.GoalPosition);
 
         // Get Settings
         // We use the smallest dimension to define the "edge" of the map
@@ -210,20 +200,19 @@ public class PlayerManager : MonoBehaviour
 
         float intensity = 0f;
 
-
+        float sigma = mapRadius / AppManager.Instance.Settings.SigmaScale;
         switch (typeIndex)
         {
             case 0: // Standard Gaussian
                 // Sigma controls the spread
                 // Rule of thumb: At distance = sigma, intensity is ~0.60. At 2*sigma, it's ~0.13.
-                // Set sigma so the edge of the map (mapRadius) is 3 standard deviations (intensity ~0)
-                float sigma = mapRadius;
                 intensity = Mathf.Exp(-(distance * distance) / (2f * sigma * sigma));
                 break;
 
             case 1: // Linear
                 // Simple 1.0 at center, 0.0 at edge
-                intensity = 1f - (distance / mapRadius);
+                float slope = sigma;
+                intensity = 1f - (distance / slope);
                 break;
 
             case 2: // Inverse (Dark at center, bright at edge)

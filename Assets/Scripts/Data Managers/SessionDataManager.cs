@@ -8,6 +8,12 @@ public class SessionDataManager
     public enum Gender { Unspecified, Male, Female, NonBinary, Other }
     public enum GameMode { Default }
     public enum SessionType { Desktop, VR }
+    public enum GameState { Idle, Orient, Paused, Trial }
+
+    public int TrialNumber = -1;
+    public Vector2 SpawnPosition = Vector2.zero;
+    public Vector2 GoalPosition = Vector2.zero;
+    public GameState State = GameState.Idle;
 
     // Getters enforce session start or will throw an exception
     // Getters can be found at the bottom of the script

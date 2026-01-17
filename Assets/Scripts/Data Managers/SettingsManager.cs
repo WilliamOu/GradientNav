@@ -42,7 +42,7 @@ public class EnumSetting : SettingDef
 
 // To add a new setting: 
 // 1) Add a public field for the setting under "Cached public values" (see below)
-// 2) Add a SettingDef for it in InitializeDefaultValues()
+// 2) Add a SettingDef for it in InitializeDefaultSettings()
 // 3) Add a mapping line in UpdatedCachedValues()
 public class SettingsManager
 {
@@ -65,6 +65,7 @@ public class SettingsManager
     public bool ExperimentalMode { get; private set; }
     public int ParticipantMaxTestCount { get; private set; }
     public int TrialCount { get; private set; }
+    public float SigmaScale { get; private set; }
     public int GaussianTypeIndex { get; private set; }
 
     // TODO: Add a setting enabling or disabling VR movement via controller
@@ -197,6 +198,15 @@ public class SettingsManager
             Max = 9999,
         });
 
+        SettingsList.Add(new FloatSetting
+        {
+            Name = "Sigma Scale",
+            Description = "Sigma scaling parameter. Calculated as Min(Map Width, Map Length)/[scale parameter].",
+            Value = 2f,
+            Min = 0.0001f,
+            Max = 9999f,
+        });
+
         SettingsList.Add(new EnumSetting
         {
             Name = "Gaussian Type",
@@ -213,7 +223,7 @@ public class SettingsManager
         EnableMouseX = GetSetting<BoolSetting>("Enable Mouse X")?.Value ?? true;
         EnableMouseY = GetSetting<BoolSetting>("Enable Mouse Y")?.Value ?? false;
         MoveSpeed = GetSetting<FloatSetting>("Move Speed")?.Value ?? 8.0f;
-        MapLength = GetSetting<FloatSetting>("Map Length")?.Value ?? 1.0f;
+        MapLength = GetSetting<FloatSetting>("Map Length")?.Value ?? 10.0f;
         MapWidth = GetSetting<FloatSetting>("Map Width")?.Value ?? 10.0f;
         TimeToSeek = GetSetting<FloatSetting>("Time To Seek")?.Value ?? 30.0f;
         SuccessThreshold = GetSetting<FloatSetting>("Success Threshold")?.Value ?? 0.9f;
@@ -223,6 +233,7 @@ public class SettingsManager
         ExperimentalMode = GetSetting<BoolSetting>("Experimental Mode")?.Value ?? false;
         ParticipantMaxTestCount = GetSetting<IntegerSetting>("Participant Max Test Count")?.Value ?? 1;
         TrialCount = GetSetting<IntegerSetting>("Trial Count")?.Value ?? 3;
+        SigmaScale = GetSetting<FloatSetting>("Sigma Scale")?.Value ?? 2.0f;
         GaussianTypeIndex = GetSetting<EnumSetting>("Gaussian Type")?.SelectedIndex ?? 0;
 
         // Debug.Log("Settings Cache Updated");

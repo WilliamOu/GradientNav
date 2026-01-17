@@ -5,12 +5,10 @@ using UnityEngine.SceneManagement;
 
 public class GradientNavigationSceneManager : MonoBehaviour
 {
-    private enum GameState { Idle, Orient, Paused, Trial }
-
-    [SerializeField] private float minStartDistance = 0.1f;
+    [SerializeField] private float minStartDistance = 1f;
 
     // State
-    private GameState state = GameState.Idle;
+    private SessionDataManager.GameState state;
 
     private int trialIndex;
     private int attemptsRemaining;
@@ -27,8 +25,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     private void Start()
     {
+        SetState(SessionDataManager.GameState.Idle);
         AppManager.Instance.Player.SpawnPlayer(Vector3.zero, Quaternion.identity);
-
         StartCoroutine(RunAllTrials());
     }
 
@@ -37,19 +35,18 @@ public class GradientNavigationSceneManager : MonoBehaviour
         // Pause/unpause toggle
         if (GetPauseToggleInput())
         {
-            if (state == GameState.Trial) Pause();
-            else if (state == GameState.Paused) Unpause();
+            if (state == SessionDataManager.GameState.Trial) Pause();
+            else if (state == SessionDataManager.GameState.Paused) Unpause();
             return;
         }
 
-        // Only Trial state runs game loop logic
-        if (state != GameState.Trial) return;
-
-        // Trial-only updates
         AppManager.Instance.Logger.ManualUpdate();
+
+        // Only Trial state runs game loop logic
+        if (state != SessionDataManager.GameState.Trial) return;
+
         AppManager.Instance.Player.UpdateStimulusUI();
 
-        // Trial-only time progression
         timeRemaining -= Time.deltaTime;
         if (timeRemaining <= 0f)
         {
@@ -57,8 +54,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
             EndTrial();
             return;
         }
-
-        // Trial-only submission
+        
         if (GetSubmitInput())
         {
             HandleSubmission();
@@ -67,8 +63,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     private IEnumerator RunAllTrials()
     {
-        state = GameState.Idle;
-
+        AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
+        AppManager.Instance.Logger.BeginLogging();
         int totalTrials = AppManager.Instance.Settings.TrialCount;
 
         for (trialIndex = 0; trialIndex < totalTrials; trialIndex++)
@@ -76,55 +72,51 @@ public class GradientNavigationSceneManager : MonoBehaviour
             // Pick new randomized positions every loop
             SetupPositions(out startXZ, out targetXZ);
 
+            AppManager.Instance.Session.TrialNumber = trialIndex + 1;
+            AppManager.Instance.Session.SpawnPosition = startXZ;
+            AppManager.Instance.Session.GoalPosition = targetXZ;
+
             // Reset per-trial counters
             attemptsRemaining = AppManager.Instance.Settings.ParticipantMaxTestCount;
             timeRemaining = AppManager.Instance.Settings.TimeToSeek;
             trialComplete = false;
 
-            // Apply target each trial
-            AppManager.Instance.Player.SetStimulusTarget(targetXZ);
+            /*if (trialIndex == 0)
+                AppManager.Instance.Logger.BeginLogging();
+            else
+                AppManager.Instance.Logger.ResumeLogging();*/
 
             // Move player to start:
             if (!AppManager.Instance.Session.IsVRMode)
-            {
-                // Desktop: teleport is allowed
                 AppManager.Instance.Player.Teleport(startXZ.x, startXZ.y);
-            }
             else
-            {
-                // VR: do NOT allow orientation in desktop mode
                 yield return WalkOrientTo(startXZ);
-            }
 
             // Start trial
-            state = GameState.Trial;
-            if (trialIndex == 0)
-            {
-                AppManager.Instance.Logger.BeginLogging();
-            }
-            else
-            {
-                AppManager.Instance.Logger.ResumeLogging();
-            }
+            SetState(SessionDataManager.GameState.Trial);
             AppManager.Instance.Logger.LogEvent($"TRIAL_START {trialIndex}");
 
             // Wait until the trial truly completes (pause does not count)
             yield return new WaitUntil(() => trialComplete);
 
-            if (trialIndex == totalTrials - 1) {
+            /*if (trialIndex == totalTrials - 1)
                 AppManager.Instance.Logger.EndLogging();
-            }
             else
-            {
-                AppManager.Instance.Logger.PauseLogging();
-            }
+                AppManager.Instance.Logger.PauseLogging();*/
 
-            state = GameState.Idle;
+            SetState(SessionDataManager.GameState.Idle);
         }
 
         // All trials complete
-        state = GameState.Idle;
+        SetState(SessionDataManager.GameState.Idle);
+        AppManager.Instance.Logger.EndLogging();
         SceneManager.LoadScene("Closing Scene");
+    }
+
+    private void SetState(SessionDataManager.GameState gameState)
+    {
+        state = gameState;
+        AppManager.Instance.Session.State = gameState;
     }
 
     private void HandleSubmission()
@@ -135,7 +127,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         if (isSuccess)
         {
             Debug.Log($"[Trial {trialIndex + 1}] Success.");
-            AppManager.Instance.Logger.LogEvent($"TRIAL_END {trialIndex} success=1");
+            AppManager.Instance.Logger.LogEvent($"TRIAL_SUCCESS {trialIndex}");
             EndTrial();
             return;
         }
@@ -146,17 +138,17 @@ public class GradientNavigationSceneManager : MonoBehaviour
         if (attemptsRemaining != -1 && attemptsRemaining <= 0)
         {
             Debug.Log($"[Trial {trialIndex + 1}] Failed (no attempts remaining).");
-            AppManager.Instance.Logger.LogEvent($"TRIAL_END {trialIndex} success=0");
+            AppManager.Instance.Logger.LogEvent($"TRIAL_FAIL {trialIndex}");
             EndTrial();
         }
     }
 
     private void EndTrial()
     {
-        if (state != GameState.Trial) return;
+        if (state != SessionDataManager.GameState.Trial) return;
 
         // Stop trial logic immediately
-        state = GameState.Idle;
+        SetState(SessionDataManager.GameState.Idle);
         trialComplete = true;
     }
 
@@ -164,13 +156,13 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     private void Pause()
     {
-        if (state != GameState.Trial) return;
+        if (state != SessionDataManager.GameState.Trial) return;
 
         // Save where we were when paused (XZ)
         Vector3 camPos = AppManager.Instance.Player.CameraPosition().position;
         pausedReturnXZ = new Vector2(camPos.x, camPos.z);
 
-        state = GameState.Paused;
+        SetState(SessionDataManager.GameState.Paused);
 
         // Desktop: toggle movement as requested
         if (!AppManager.Instance.Session.IsVRMode)
@@ -178,34 +170,34 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
         // VR: no teleport, just halt trial logic
         AppManager.Instance.Player.SetUIMessage("Paused", Color.white, -1);
-        AppManager.Instance.Logger.LogEvent("PAUSE");
+        AppManager.Instance.Logger.LogEvent("PAUSED");
         AppManager.Instance.Player.EnableBlackscreen();
     }
 
     private void Unpause()
     {
-        if (state != GameState.Paused) return;
+        if (state != SessionDataManager.GameState.Paused) return;
 
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
-        AppManager.Instance.Logger.LogEvent("UNPAUSE");
+        AppManager.Instance.Logger.LogEvent("UNPAUSED");
         AppManager.Instance.Player.DisableBlackscreen();
 
         if (!AppManager.Instance.Session.IsVRMode)
         {
             // Desktop: restore movement + resume trial
             AppManager.Instance.Player.ToggleMovement();
-            state = GameState.Trial;
+            SetState(SessionDataManager.GameState.Trial);
             return;
         }
 
         // VR: walk-orient back to where they paused, then resume
-        state = GameState.Trial; // StartCoroutine(UnpauseVRRoutine()); (CURRENTLY DISABLED)
+        SetState(SessionDataManager.GameState.Trial); // StartCoroutine(UnpauseVRRoutine()); (CURRENTLY DISABLED)
     }
 
     private IEnumerator UnpauseVRRoutine()
     {
         yield return WalkOrientTo(pausedReturnXZ);
-        state = GameState.Trial;
+        SetState(SessionDataManager.GameState.Trial);
     }
 
     // ----------- Orientation (VR only) -----------
@@ -215,14 +207,14 @@ public class GradientNavigationSceneManager : MonoBehaviour
         if (!AppManager.Instance.Session.IsVRMode)
             yield break; // Orientation must never happen on desktop
 
-        state = GameState.Orient;
+        SetState(SessionDataManager.GameState.Orient);
+        AppManager.Instance.Logger.LogEvent($"ORIENTATION_START {trialIndex}");
 
         // Walk-only orientation
         yield return AppManager.Instance.Orientation.WalkToLocation(xz.x, xz.y);
 
-        // After orient completes, do NOT automatically enter Trial here.
-        // Caller decides what state comes next.
-        state = GameState.Idle;
+        AppManager.Instance.Logger.LogEvent($"ORIENTATION_END {trialIndex}");
+        SetState(SessionDataManager.GameState.Idle);
     }
 
     // ----------- Randomization -----------
@@ -264,7 +256,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     private bool GetSubmitInput()
     {
-        if (state != GameState.Trial) return false;
+        if (state != SessionDataManager.GameState.Trial) return false;
 
         // Desktop
         if (!AppManager.Instance.Session.IsVRMode && Input.GetKeyDown(KeyCode.Return))
@@ -283,7 +275,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
     private bool GetPauseToggleInput()
     {
         // Valid states only
-        if (state != GameState.Trial && state != GameState.Paused) return false;
+        if (state != SessionDataManager.GameState.Trial && state != SessionDataManager.GameState.Paused) return false;
 
         // Desktop
         if (!AppManager.Instance.Session.IsVRMode)

@@ -12,11 +12,18 @@ public class LogManager
 
     public struct LogFrame
     {
-        public string Event;          // empty for normal frames; set for events
+        public string Event;
+        public string ParticipantID;
+        public float SigmaScale;
+        public string Gaussian;
+        public SessionDataManager.GameState State;
+        public int TrialNumber;
         public float GlobalTime;
         public Vector3 HeadPos;
         public Vector3 HeadRotEuler;
         public float StimulusIntensity;
+        public Vector2 SpawnPosition;
+        public Vector2 GoalPosition;
     }
 
     // Double buffering logic
@@ -65,7 +72,7 @@ public class LogManager
 
         // Write Header (Synchronous is fine here because it happens once)
         // Handle VR vs Desktop headers always log same data
-        string header = "Event,GlobalTime,HeadX,HeadY,HeadZ,RotX,RotY,RotZ,StimulusIntensity\n";
+        string header = "Event,ParticipantID,SigmaScale,Gaussian,State,TrialNumber,GlobalTime,HeadX,HeadY,HeadZ,RotX,RotY,RotZ,StimulusIntensity,SpawnX,SpawnZ,GoalX,GoalZ\n";
         File.WriteAllText(fullFilePath, header);
 
         // Reset
@@ -95,7 +102,7 @@ public class LogManager
         Debug.Log("[LogManager] Recording stopped.");
     }
 
-    public void PauseLogging()
+    public void  Logging()
     {
         if (!isLogging) return;
 
@@ -124,10 +131,17 @@ public class LogManager
 
         activeBuffer.Add(new LogFrame
         {
+            ParticipantID = AppManager.Instance.Session.ParticipantId,
+            SigmaScale = AppManager.Instance.Settings.SigmaScale,
+            Gaussian = PlayerManager.MapTypes[AppManager.Instance.Settings.GaussianTypeIndex],
+            State = AppManager.Instance.Session.State,
+            TrialNumber = AppManager.Instance.Session.TrialNumber,
             GlobalTime = Time.time,
             HeadPos = cameraT.position,
             HeadRotEuler = cameraT.eulerAngles,
-            StimulusIntensity = AppManager.Instance.Player.StimulusIntensity
+            StimulusIntensity = AppManager.Instance.Session.State == SessionDataManager.GameState.Trial ? AppManager.Instance.Player.StimulusIntensity : -1,
+            SpawnPosition = AppManager.Instance.Session.SpawnPosition,
+            GoalPosition = AppManager.Instance.Session.GoalPosition
         });
 
         // Safety Valve Flush
@@ -152,10 +166,17 @@ public class LogManager
         activeBuffer.Add(new LogFrame
         {
             Event = evt,
+            ParticipantID = AppManager.Instance.Session.ParticipantId,
+            SigmaScale = AppManager.Instance.Settings.SigmaScale,
+            Gaussian = PlayerManager.MapTypes[AppManager.Instance.Settings.GaussianTypeIndex],
+            State = AppManager.Instance.Session.State,
+            TrialNumber = AppManager.Instance.Session.TrialNumber,
             GlobalTime = Time.time,
             HeadPos = pos,
             HeadRotEuler = rot,
-            StimulusIntensity = AppManager.Instance.Player.StimulusIntensity
+            StimulusIntensity = AppManager.Instance.Session.State == SessionDataManager.GameState.Trial ? AppManager.Instance.Player.StimulusIntensity : -1,
+            SpawnPosition = AppManager.Instance.Session.SpawnPosition,
+            GoalPosition = AppManager.Instance.Session.GoalPosition
         });
 
         if (activeBuffer.Count >= bufferLimit)
@@ -184,6 +205,11 @@ public class LogManager
                         evt = evt.Replace("\"", "\"\"");
                         sb.Append("\"").Append(evt).Append("\"").Append(",");
 
+                        sb.Append("\"").Append(frame.ParticipantID).Append("\"").Append(",");
+                        sb.Append(frame.SigmaScale).Append(",");
+                        sb.Append("\"").Append(frame.Gaussian).Append("\"").Append(",");
+                        sb.Append(frame.State.ToString()).Append(",");
+                        sb.Append(frame.TrialNumber).Append(",");
                         sb.Append(frame.GlobalTime.ToString("F3")).Append(",");
                         sb.Append(frame.HeadPos.x.ToString("F3")).Append(",");
                         sb.Append(frame.HeadPos.y.ToString("F3")).Append(",");
@@ -191,7 +217,11 @@ public class LogManager
                         sb.Append(frame.HeadRotEuler.x.ToString("F3")).Append(",");
                         sb.Append(frame.HeadRotEuler.y.ToString("F3")).Append(",");
                         sb.Append(frame.HeadRotEuler.z.ToString("F3")).Append(",");
-                        sb.Append(frame.StimulusIntensity.ToString("F3"));
+                        sb.Append(frame.StimulusIntensity.ToString("F3")).Append(",");
+                        sb.Append(frame.SpawnPosition.x.ToString("F3")).Append(",");
+                        sb.Append(frame.SpawnPosition.y.ToString("F3")).Append(",");
+                        sb.Append(frame.GoalPosition.x.ToString("F3")).Append(",");
+                        sb.Append(frame.GoalPosition.y.ToString("F3")).Append(",");
                         sb.AppendLine();
                     }
 
