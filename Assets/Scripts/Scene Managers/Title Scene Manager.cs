@@ -102,6 +102,17 @@ public class TitleSceneManager : MonoBehaviour
         menuState = MenuState.Main;
     }
 
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus) return;
+
+        if (menuState == MenuState.Settings)
+        {
+            AppManager.Instance.Settings.LoadFromDisk();
+            GenerateSettingsUI();
+        }
+    }
+
     private bool TryParseGender(string input, out SessionDataManager.Gender gender)
     {
         if (string.IsNullOrWhiteSpace(input))

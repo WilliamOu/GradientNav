@@ -21,6 +21,7 @@ public class AppManager : MonoBehaviour
     public PlayerManager Player { get; private set; }
     public LogManager Logger { get; private set; }
     public OrientationManager Orientation { get; private set; }
+    public StimulusManager Stimulus { get; private set; }
 
     void Awake()
     {
@@ -33,6 +34,7 @@ public class AppManager : MonoBehaviour
         Logger = new LogManager();
         Player = gameObject.AddComponent<PlayerManager>();
         Orientation = gameObject.AddComponent<OrientationManager>();
+        Stimulus = gameObject.AddComponent<StimulusManager>();
 
         Player.Init(vrPlayerPrefab, desktopPlayerPrefab);
         Orientation.Init(lookObjectPrefab, walkObjectPrefab);

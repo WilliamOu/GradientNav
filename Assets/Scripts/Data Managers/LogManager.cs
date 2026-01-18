@@ -133,7 +133,7 @@ public class LogManager
         {
             ParticipantID = AppManager.Instance.Session.ParticipantId,
             SigmaScale = AppManager.Instance.Settings.SigmaScale,
-            Gaussian = PlayerManager.MapTypes[AppManager.Instance.Settings.GaussianTypeIndex],
+            Gaussian = StimulusManager.MapTypes[AppManager.Instance.Settings.MapTypeIndex],
             State = AppManager.Instance.Session.State,
             TrialNumber = AppManager.Instance.Session.TrialNumber,
             GlobalTime = Time.time,
@@ -168,7 +168,7 @@ public class LogManager
             Event = evt,
             ParticipantID = AppManager.Instance.Session.ParticipantId,
             SigmaScale = AppManager.Instance.Settings.SigmaScale,
-            Gaussian = PlayerManager.MapTypes[AppManager.Instance.Settings.GaussianTypeIndex],
+            Gaussian = StimulusManager.MapTypes[AppManager.Instance.Settings.MapTypeIndex],
             State = AppManager.Instance.Session.State,
             TrialNumber = AppManager.Instance.Session.TrialNumber,
             GlobalTime = Time.time,

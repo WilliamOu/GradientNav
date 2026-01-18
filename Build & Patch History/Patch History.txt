@@ -2,6 +2,13 @@
 Patch History For GradientNav
 =============================
 
+Version 0.1.6.0 - Jan 17, 2026
+- Added torus and multi-peak map options.
+- Added a setting for enabling/disabling the pause system in game.
+- Added a minimap for the VR player and the desktop player in experimental mode. 
+- Added the ability to choose between random trial generation, seeded trial generation, and CSV trial generation.
+- Added the ability to recenter the VR player. 
+
 Version 0.1.5.0 - Jan 16, 2026
 - Added a setting for the scale parameter.
 - Added data logging fields for spawn and goal positions, 

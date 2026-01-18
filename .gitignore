@@ -7,12 +7,6 @@
 # Asset Store Plugins
 /[Aa]ssets/[Qq]uick[Oo]utline/
 /[Aa]ssets/[Qq]uick[Oo]utline.meta
-/[Aa]ssets/[Ss]teamVR_[Rr]esources/
-/[Aa]ssets/[Ss]teamVR_[Rr]esources.meta
-/[Aa]ssets/[Ss]teamVR_[Ii]nput/
-/[Aa]ssets/[Ss]teamVR_[Ii]nput.meta
-/[Aa]ssets/[Ss]teamVR/
-/[Aa]ssets/[Ss]teamVR.meta
 
 # This .gitignore file should be placed at the root of your Unity project directory
 #

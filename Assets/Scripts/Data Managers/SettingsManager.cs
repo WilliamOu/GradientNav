@@ -1,6 +1,5 @@
 using UnityEngine;
 using System;
-using UnityEngine.UIElements;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -46,6 +45,9 @@ public class EnumSetting : SettingDef
 // 3) Add a mapping line in UpdatedCachedValues()
 public class SettingsManager
 {
+    private const string TrialsFolderName = "Trials";
+    public string TrialsFolderPath => Path.Combine(Application.persistentDataPath, TrialsFolderName);
+
     // The "Database" of settings
     public List<SettingDef> SettingsList = new List<SettingDef>();
 
@@ -61,12 +63,16 @@ public class SettingsManager
     public float SuccessThreshold { get; private set; }
     public float DataLogInterval { get; private set; }
     public int BufferSizeBeforeWrite { get; private set; }
+    public bool EnablePause { get; private set; }
     public bool EnableSafetyWalls { get; private set; } // TODO: Implement
     public bool ExperimentalMode { get; private set; }
     public int ParticipantMaxTestCount { get; private set; }
     public int TrialCount { get; private set; }
     public float SigmaScale { get; private set; }
-    public int GaussianTypeIndex { get; private set; }
+    public int MapTypeIndex { get; private set; }
+    public int PeakCount { get; private set; }
+    public int TrialSourceIndex { get; private set; }
+    public int Seed { get; private set; }
 
     // TODO: Add a setting enabling or disabling VR movement via controller
 
@@ -168,6 +174,13 @@ public class SettingsManager
 
         SettingsList.Add(new BoolSetting
         {
+            Name = "Enable Pause",
+            Description = "Lets the participant pause the study by pressing either spacebar (desktop) or the selection input (VR).",
+            Value = false,
+        });
+
+        SettingsList.Add(new BoolSetting
+        {
             Name = "Enable Safety Walls",
             Description = "(VR Only) Displays virtual walls when close to the map boundaries so the participant does not collide with a physical wall.",
             Value = true,
@@ -209,10 +222,36 @@ public class SettingsManager
 
         SettingsList.Add(new EnumSetting
         {
-            Name = "Gaussian Type",
-            Description = "Guassian Function Type.",
+            Name = "Map Type",
+            Description = "The type of map used when generating with the Random (no seed) or Random (seeded) source types.",
             SelectedIndex = 0,
-            Options = PlayerManager.MapTypes,
+            Options = StimulusManager.MapTypes,
+        });
+
+        SettingsList.Add(new IntegerSetting
+        {
+            Name = "Peak Count",
+            Description = "The number of peaks to use when generating a Multi-Peak map with the Random (no seed) or Random (seeded) source types.",
+            Value = 3,
+            Min = 1,
+            Max = 9999,
+        });
+
+        SettingsList.Add(new EnumSetting
+        {
+            Name = "Trial Source",
+            Description = "How trials are defined: Random (no seed), Random (seeded), or load from a CSV in [PersistentDataPath]/Trials.",
+            SelectedIndex = 0,
+            Options = new List<string>(), // will be filled by RefreshTrialSourceOptions()
+        });
+
+        SettingsList.Add(new IntegerSetting
+        {
+            Name = "Seed",
+            Description = "The seed used when generating maps with the Random (seeded) source type.",
+            Value = 11111111,
+            Min = 0,
+            Max = int.MaxValue,
         });
     }
 
@@ -229,12 +268,16 @@ public class SettingsManager
         SuccessThreshold = GetSetting<FloatSetting>("Success Threshold")?.Value ?? 0.9f;
         DataLogInterval = GetSetting<FloatSetting>("Data Log Interval")?.Value ?? 0.011f;
         BufferSizeBeforeWrite = GetSetting<IntegerSetting>("Buffer Size Before Write")?.Value ?? LogManager.MinBufferSize;
+        EnablePause = GetSetting<BoolSetting>("Enable Pause")?.Value ?? false;
         EnableSafetyWalls = GetSetting<BoolSetting>("Enable Safety Walls")?.Value ?? true;
         ExperimentalMode = GetSetting<BoolSetting>("Experimental Mode")?.Value ?? false;
         ParticipantMaxTestCount = GetSetting<IntegerSetting>("Participant Max Test Count")?.Value ?? 1;
         TrialCount = GetSetting<IntegerSetting>("Trial Count")?.Value ?? 3;
         SigmaScale = GetSetting<FloatSetting>("Sigma Scale")?.Value ?? 2.0f;
-        GaussianTypeIndex = GetSetting<EnumSetting>("Gaussian Type")?.SelectedIndex ?? 0;
+        MapTypeIndex = GetSetting<EnumSetting>("Map Type")?.SelectedIndex ?? 0;
+        PeakCount = GetSetting<IntegerSetting>("Peak Count")?.Value ?? 3;
+        TrialSourceIndex = GetSetting<EnumSetting>("Trial Source")?.SelectedIndex ?? 0;
+        Seed = GetSetting<IntegerSetting>("Seed")?.Value ?? 11111111;
 
         // Debug.Log("Settings Cache Updated");
     }
@@ -252,10 +295,14 @@ public class SettingsManager
         [Serializable]
         public struct IntData { public string Name; public int Value; }
 
+        [Serializable]
+        public struct StringData { public string Name; public string Value; }
+
         // Separate lists for each type
         public List<BoolData> Bools = new List<BoolData>();
         public List<FloatData> Floats = new List<FloatData>();
         public List<IntData> Ints = new List<IntData>();
+        public List<StringData> Strings = new List<StringData>();
     }
 
     public string FilePath => Path.Combine(Application.persistentDataPath, "settings.json");
@@ -279,6 +326,11 @@ public class SettingsManager
                     saveData.Ints.Add(new SettingsSaveData.IntData { Name = i.Name, Value = i.Value });
                     break;
                 case EnumSetting e:
+                    string selected = (e.Options != null && e.SelectedIndex >= 0 && e.SelectedIndex < e.Options.Count)
+                        ? e.Options[e.SelectedIndex]
+                        : "";
+                    saveData.Strings.Add(new SettingsSaveData.StringData { Name = e.Name, Value = selected });
+
                     saveData.Ints.Add(new SettingsSaveData.IntData { Name = e.Name, Value = e.SelectedIndex });
                     break;
             }
@@ -303,6 +355,8 @@ public class SettingsManager
 
     public void LoadFromDisk()
     {
+        RefreshTrialSourceOptions();
+
         if (!File.Exists(FilePath))
         {
             SaveToDisk(); // Generates defaults
@@ -314,49 +368,87 @@ public class SettingsManager
             // Read JSON
             string json = File.ReadAllText(FilePath);
             SettingsSaveData loadedData = JsonUtility.FromJson<SettingsSaveData>(json);
+            if (loadedData == null)
+            {
+                Debug.LogError("Failed to parse settings.json, regenerating defaults.");
+                SaveToDisk();
+                return;
+            }
 
             // Apply values to the Runtime List
             // Loop through the LOADED data and find the matching Runtime setting
 
-            // Apply Bools
-            foreach (var boolData in loadedData.Bools)
+            if (loadedData.Bools != null)
             {
-                var setting = SettingsList.OfType<BoolSetting>().FirstOrDefault(s => s.Name == boolData.Name);
-                if (setting != null)
+                // Apply Bools
+                foreach (var boolData in loadedData.Bools)
                 {
-                    setting.Value = boolData.Value;
-                    // Manually invoke the callback so the app reacts to the loaded value
-                    setting.OnChanged?.Invoke(setting.Value);
+                    var setting = SettingsList.OfType<BoolSetting>().FirstOrDefault(s => s.Name == boolData.Name);
+                    if (setting != null)
+                    {
+                        setting.Value = boolData.Value;
+                        // Manually invoke the callback so the app reacts to the loaded value
+                        setting.OnChanged?.Invoke(setting.Value);
+                    }
+                }
+            }   
+
+            if (loadedData.Floats != null)
+            {
+                // Apply Floats
+                foreach (var floatData in loadedData.Floats)
+                {
+                    var setting = SettingsList.OfType<FloatSetting>().FirstOrDefault(s => s.Name == floatData.Name);
+                    if (setting != null)
+                    {
+                        // Safety: Clamp again just to be safe in case JSON was edited manually
+                        setting.Value = Mathf.Clamp(floatData.Value, setting.Min, setting.Max);
+                        setting.OnChanged?.Invoke(setting.Value);
+                    }
                 }
             }
 
-            // Apply Floats
-            foreach (var floatData in loadedData.Floats)
+
+            if (loadedData.Strings != null)
             {
-                var setting = SettingsList.OfType<FloatSetting>().FirstOrDefault(s => s.Name == floatData.Name);
-                if (setting != null)
+                // Apply Strings (prefer this for EnumSetting to avoid index drift)
+                foreach (var stringData in loadedData.Strings)
                 {
-                    // Safety: Clamp again just to be safe in case JSON was edited manually
-                    setting.Value = Mathf.Clamp(floatData.Value, setting.Min, setting.Max);
-                    setting.OnChanged?.Invoke(setting.Value);
+                    var settingDef = SettingsList.FirstOrDefault(s => s.Name == stringData.Name);
+                    if (settingDef is EnumSetting enumSetting)
+                    {
+                        int idx = enumSetting.Options?.FindIndex(o => string.Equals(o, stringData.Value, StringComparison.OrdinalIgnoreCase)) ?? -1;
+
+                        enumSetting.SelectedIndex = (idx >= 0) ? idx : 0;
+                        enumSetting.OnChanged?.Invoke(enumSetting.SelectedIndex);
+                    }
                 }
             }
 
-            // Apply Ints (Handles both IntegerSetting and EnumSetting)
-            foreach (var intData in loadedData.Ints)
+            if (loadedData.Ints != null)
             {
-                // Find ANY setting with this name
-                var settingDef = SettingsList.FirstOrDefault(s => s.Name == intData.Name);
+                // Apply Ints (Handles both IntegerSetting and EnumSetting)
+                foreach (var intData in loadedData.Ints)
+                {
+                    // Find ANY setting with this name
+                    var settingDef = SettingsList.FirstOrDefault(s => s.Name == intData.Name);
 
-                if (settingDef is IntegerSetting intSetting)
-                {
-                    intSetting.Value = Mathf.Clamp(intData.Value, intSetting.Min, intSetting.Max);
-                    intSetting.OnChanged?.Invoke(intSetting.Value);
-                }
-                else if (settingDef is EnumSetting enumSetting)
-                {
-                    enumSetting.SelectedIndex = Mathf.Clamp(intData.Value, 0, enumSetting.Options.Count - 1);
-                    enumSetting.OnChanged?.Invoke(enumSetting.SelectedIndex);
+                    if (settingDef is IntegerSetting intSetting)
+                    {
+                        intSetting.Value = Mathf.Clamp(intData.Value, intSetting.Min, intSetting.Max);
+                        intSetting.OnChanged?.Invoke(intSetting.Value);
+                    }
+                    else if (settingDef is EnumSetting enumSetting)
+                    {
+                        // If we already had a string entry for this enum, do not overwrite it with int fallback.
+                        bool hasString = loadedData.Strings != null && loadedData.Strings.Any(s => s.Name == intData.Name);
+                        if (!hasString)
+                        {
+                            int max = (enumSetting.Options != null && enumSetting.Options.Count > 0) ? enumSetting.Options.Count - 1 : 0;
+                            enumSetting.SelectedIndex = Mathf.Clamp(intData.Value, 0, max);
+                            enumSetting.OnChanged?.Invoke(enumSetting.SelectedIndex);
+                        }
+                    }
                 }
             }
 
@@ -382,5 +474,62 @@ public class SettingsManager
             return null;
         }
         return s;
+    }
+
+    private List<string> BuildTrialSourceOptions()
+    {
+        Directory.CreateDirectory(TrialsFolderPath);
+
+        var options = new List<string> { "Random (no seed)", "Random (seeded)" };
+
+        try
+        {
+            var csvFiles = Directory.GetFiles(TrialsFolderPath, "*.csv", SearchOption.TopDirectoryOnly)
+                .Select(Path.GetFileNameWithoutExtension)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n.Trim())
+                .GroupBy(n => n, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                .Select(n => $"{n} (CSV)");
+
+            options.AddRange(csvFiles);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"Could not enumerate Trials CSVs: {ex.Message}");
+        }
+
+        return options;
+    }
+
+
+    public void RefreshTrialSourceOptions()
+    {
+        var setting = GetSetting<EnumSetting>("Trial Source");
+        if (setting == null) return;
+
+        string previouslySelected =
+            (setting.Options != null &&
+             setting.SelectedIndex >= 0 &&
+             setting.SelectedIndex < setting.Options.Count)
+                ? setting.Options[setting.SelectedIndex]
+                : null;
+
+        var newOptions = BuildTrialSourceOptions();
+        setting.Options = newOptions;
+
+        int newIndex = 0;
+        if (!string.IsNullOrEmpty(previouslySelected))
+        {
+            int found = newOptions.FindIndex(o => string.Equals(o, previouslySelected, StringComparison.OrdinalIgnoreCase));
+            if (found >= 0) newIndex = found;
+        }
+
+        int oldIndex = setting.SelectedIndex;
+        setting.SelectedIndex = Mathf.Clamp(newIndex, 0, setting.Options.Count - 1);
+
+        if (setting.SelectedIndex != oldIndex)
+            setting.OnChanged?.Invoke(setting.SelectedIndex);
     }
 }

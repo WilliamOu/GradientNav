@@ -3,22 +3,25 @@ using System.Collections.Generic;
 using System.Collections;
 using Unity.VisualScripting;
 using static UnityEngine.GraphicsBuffer;
+using Unity.XR.CoreUtils;
+using UnityEngine.XR.Interaction.Toolkit;
 
 // TODO: Add support for safety boundaries, since those are UI elements
 public class PlayerManager : MonoBehaviour
 {
-    public static readonly List<string> MapTypes = new List<string> { "Standard", "Linear", "Inverse" };
-
     public bool PlayerSpawned { get; private set; }
     public float StimulusIntensity { get; private set; } = -1f;
     public bool CanMove { get; private set; } = true;
     public bool CanLook { get; private set; } = true;
+    public MinimapRenderer Minimap { get; private set; }
 
     private GameObject vrPlayerPrefab;
     private GameObject desktopPlayerPrefab;
     private GameObject activePlayerInstance;
     private Coroutine clearUITextCoroutine;
     private PlayerUIReferences activeUI;
+    private TeleportationProvider teleportationProvider;
+    private Transform xrOrigin;
 
     public void Init(GameObject vrPlayerPrefab, GameObject desktopPlayerPrefab)
     {
@@ -48,6 +51,18 @@ public class PlayerManager : MonoBehaviour
         activePlayerInstance = newPlayer;
         activeUI = newPlayer.GetComponentInChildren<PlayerUIReferences>(true);
 
+        if (AppManager.Instance.Session.IsVRMode)
+        {
+            teleportationProvider = newPlayer.GetComponentInChildren<TeleportationProvider>(true);
+            xrOrigin = teleportationProvider.transform;
+        }
+
+        Minimap = newPlayer.GetComponentInChildren<MinimapRenderer>(true);
+        if (!AppManager.Instance.Settings.ExperimentalMode && !AppManager.Instance.Session.IsVRMode)
+        {
+            Minimap.gameObject.SetActive(false);
+        }
+
         if (activeUI == null)
         {
             Debug.LogError("PlayerManager: Spawned player is missing the 'PlayerUIReferences' component!");
@@ -61,25 +76,13 @@ public class PlayerManager : MonoBehaviour
 
         bool isExperimental = AppManager.Instance.Settings.ExperimentalMode;
 
-        /*if (activeUI.UIText != null)
-            activeUI.UIText.gameObject.SetActive(isExperimental);*/
-
         if (activeUI.GradientImage == null)
         {
             Debug.LogError("PlayerManager: PlayerUIReferences is missing GradientImage!");
             return;
         }
 
-        // RectTransform resizing
-        if (isExperimental && !AppManager.Instance.Session.IsVRMode)
-        {
-            activeUI.GradientImage.rectTransform.sizeDelta = new Vector2(200, 200);
-            activeUI.GradientImage.rectTransform.anchorMin = new Vector2(1, 0);
-            activeUI.GradientImage.rectTransform.anchorMax = new Vector2(1, 0);
-            activeUI.GradientImage.rectTransform.pivot = new Vector2(1, 0);
-            activeUI.GradientImage.rectTransform.anchoredPosition = new Vector2(-20, 20);
-        }
-        else if (!isExperimental)
+        if (!isExperimental)
         {
             activeUI.GradientImage.rectTransform.anchorMin = Vector2.zero;
             activeUI.GradientImage.rectTransform.anchorMax = Vector2.one;
@@ -157,71 +160,52 @@ public class PlayerManager : MonoBehaviour
         return activeUI != null ? activeUI.PlayerCamera.transform : null;
     }
 
-    // Update this to be called from AppManager.Update()
+    public void TeleportVRToCoordinates(float x, float z)
+    {
+        if (teleportationProvider == null || activeUI.PlayerCamera == null || xrOrigin == null)
+        {
+            Debug.LogError("TeleportVRToCoordinates: Missing dependencies.");
+            return;
+        }
+
+        Vector3 rigPos = xrOrigin.position;
+        Vector3 headPos = activeUI.PlayerCamera.transform.position;
+
+        Vector3 headOffsetFromRig = headPos - rigPos;
+        headOffsetFromRig.y = 0; // Flatten (we don't want to mess with floor height)
+
+        Vector3 targetWorldPos = new Vector3(x, rigPos.y, z);
+        Vector3 newRigPos = targetWorldPos - headOffsetFromRig;
+
+        TeleportRequest request = new TeleportRequest()
+        {
+            destinationPosition = newRigPos,
+            destinationRotation = Quaternion.identity, // Resets rotation to face World Forward (Z+)
+            matchOrientation = MatchOrientation.None
+        };
+
+        teleportationProvider.QueueTeleportRequest(request);
+
+        Debug.Log($"Recenter Triggered: Moved Head to {x},{z} (Rig moved to {newRigPos})");
+    }
+
     public void UpdateStimulusUI()
     {
         if (!PlayerSpawned || activeUI == null) return;
 
-        // Calculate
-        float intensity01 = CalculateIntensity(activeUI.PlayerCamera.transform.position);
+        StimulusIntensity = AppManager.Instance.Stimulus.GetIntensity(activeUI.PlayerCamera.transform.position);
 
-        // Update Text
         if (activeUI.UIText != null && activeUI.UIText.gameObject.activeSelf)
         {
-            int intensity255 = Mathf.RoundToInt(intensity01 * 255f);
-            Transform headpos = AppManager.Instance.Player.CameraPosition();
-            activeUI.UIText.text = $"Intensity: {intensity01:F3} ({intensity255})\n" +
-                $"Current Position:\n{headpos.position.x:F3}, {headpos.position.z:F3}\n" +
-                $"Target Position:\n{AppManager.Instance.Session.GoalPosition.x:F3}, {AppManager.Instance.Session.GoalPosition.y:F3}";
+            int intensity255 = Mathf.RoundToInt(StimulusIntensity * 255f);
+            activeUI.UIText.text = $"Intensity: {StimulusIntensity:F3} ({intensity255})";
         }
 
-        // Update Color
         if (activeUI.GradientImage != null)
         {
-            // Usually Ganzfeld is solid color changing brightness.
-            Color c = new Color(intensity01, intensity01, intensity01, 1f);
+            Color c = new Color(StimulusIntensity, StimulusIntensity, StimulusIntensity, 1f);
             activeUI.GradientImage.color = c;
         }
-
-        StimulusIntensity = intensity01;
-    }
-
-    private float CalculateIntensity(Vector3 worldPos)
-    {
-        // Get Distance from Center (0,0)
-        // We ignore Y (Height) for the map logic usually, treating it as a 2D floor map
-        Vector2 playerPos2D = new Vector2(worldPos.x, worldPos.z);
-        float distance = Vector2.Distance(playerPos2D, AppManager.Instance.Session.GoalPosition);
-
-        // Get Settings
-        // We use the smallest dimension to define the "edge" of the map
-        float mapRadius = Mathf.Min(AppManager.Instance.Settings.MapWidth, AppManager.Instance.Settings.MapLength) / 2f;
-        int typeIndex = AppManager.Instance.Settings.GaussianTypeIndex;
-
-        float intensity = 0f;
-
-        float sigma = mapRadius / AppManager.Instance.Settings.SigmaScale;
-        switch (typeIndex)
-        {
-            case 0: // Standard Gaussian
-                // Sigma controls the spread
-                // Rule of thumb: At distance = sigma, intensity is ~0.60. At 2*sigma, it's ~0.13.
-                intensity = Mathf.Exp(-(distance * distance) / (2f * sigma * sigma));
-                break;
-
-            case 1: // Linear
-                // Simple 1.0 at center, 0.0 at edge
-                float slope = sigma;
-                intensity = 1f - (distance / slope);
-                break;
-
-            case 2: // Inverse (Dark at center, bright at edge)
-                sigma = mapRadius;
-                intensity = 1f - Mathf.Exp(-(distance * distance) / (2f * sigma * sigma));
-                break;
-        }
-
-        return Mathf.Clamp01(intensity);
     }
 
     public void SetUIMessage(string error, Color? color = null, float errorTimeSeconds = 5f)
