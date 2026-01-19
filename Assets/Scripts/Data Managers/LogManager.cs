@@ -5,17 +5,22 @@ using System.Text;
 using System.Threading.Tasks;
 using System;
 
+// To add a new data logging field:
+// 1) Add the field to the LogFrame struct
+// 2) Populate it in CaptureState()
+// 3) Write it in AppendToRow() (keep order consistent)
+// 4) Add the column name to the header in BeginLogging()
 public class LogManager
 {
     public const int MinBufferSize = 1000;
-    public const int MaxBufferSize = 30000; // Pre-allocate to prevent resizing (30k = ~5 mins at 90Hz)
+    public const int MaxBufferSize = 30000;
 
     public struct LogFrame
     {
         public string Event;
         public string ParticipantID;
         public float SigmaScale;
-        public string Gaussian;
+        public string MapType;
         public SessionDataManager.GameState State;
         public int TrialNumber;
         public float GlobalTime;
@@ -24,16 +29,75 @@ public class LogManager
         public float StimulusIntensity;
         public Vector2 SpawnPosition;
         public Vector2 GoalPosition;
+
+        public Vector3 GazeOrigin;
+        public Vector3 GazeDirection;
+
+        public Vector3 LHandPos;
+        public Vector3 LHandRotEuler;
+        public Vector3 RHandPos;
+        public Vector3 RHandRotEuler;
+
+        public void AppendToRow(StringBuilder sb)
+        {
+            string evt = Event ?? "";
+            evt = evt.Replace("\"", "\"\"");
+            sb.Append("\"").Append(evt).Append("\"").Append(",");
+
+            sb.Append("\"").Append(ParticipantID).Append("\"").Append(",");
+            sb.Append(SigmaScale).Append(",");
+            sb.Append("\"").Append(MapType).Append("\"").Append(",");
+            sb.Append(State.ToString()).Append(",");
+            sb.Append(TrialNumber).Append(",");
+            sb.Append(GlobalTime.ToString("F3")).Append(",");
+
+            // Head Vectors
+            sb.Append(HeadPos.x.ToString("F3")).Append(",");
+            sb.Append(HeadPos.y.ToString("F3")).Append(",");
+            sb.Append(HeadPos.z.ToString("F3")).Append(",");
+            sb.Append(HeadRotEuler.x.ToString("F3")).Append(",");
+            sb.Append(HeadRotEuler.y.ToString("F3")).Append(",");
+            sb.Append(HeadRotEuler.z.ToString("F3")).Append(",");
+
+            sb.Append(StimulusIntensity.ToString("F3")).Append(",");
+            sb.Append(SpawnPosition.x.ToString("F3")).Append(",");
+            sb.Append(SpawnPosition.y.ToString("F3")).Append(",");
+            sb.Append(GoalPosition.x.ToString("F3")).Append(",");
+            sb.Append(GoalPosition.y.ToString("F3")).Append(",");
+
+            // --- Gaze Vectors (NEW) ---
+            sb.Append(GazeOrigin.x.ToString("F3")).Append(",");
+            sb.Append(GazeOrigin.y.ToString("F3")).Append(",");
+            sb.Append(GazeOrigin.z.ToString("F3")).Append(",");
+            sb.Append(GazeDirection.x.ToString("F3")).Append(",");
+            sb.Append(GazeDirection.y.ToString("F3")).Append(",");
+            sb.Append(GazeDirection.z.ToString("F3")).Append(",");
+
+            // --- Hand Vectors ---
+            sb.Append(LHandPos.x.ToString("F3")).Append(",");
+            sb.Append(LHandPos.y.ToString("F3")).Append(",");
+            sb.Append(LHandPos.z.ToString("F3")).Append(",");
+            sb.Append(LHandRotEuler.x.ToString("F3")).Append(",");
+            sb.Append(LHandRotEuler.y.ToString("F3")).Append(",");
+            sb.Append(LHandRotEuler.z.ToString("F3")).Append(",");
+
+            sb.Append(RHandPos.x.ToString("F3")).Append(",");
+            sb.Append(RHandPos.y.ToString("F3")).Append(",");
+            sb.Append(RHandPos.z.ToString("F3")).Append(",");
+            sb.Append(RHandRotEuler.x.ToString("F3")).Append(",");
+            sb.Append(RHandRotEuler.y.ToString("F3")).Append(",");
+            sb.Append(RHandRotEuler.z.ToString("F3")); // No comma on last one
+
+            sb.AppendLine();
+        }
     }
 
-    // Double buffering logic
     private List<LogFrame> activeBuffer;
     private bool isLogging = false;
     private bool paused = false;
     private string fullFilePath;
     private float logTimer;
-    private int bufferLimit; 
-
+    private int bufferLimit;
     private readonly object fileWriteLock = new object();
     private Task lastWriteTask = Task.CompletedTask;
 
@@ -42,48 +106,95 @@ public class LogManager
         activeBuffer = new List<LogFrame>(MaxBufferSize);
     }
 
+    private LogFrame CaptureState(string eventName = "")
+    {
+        var session = AppManager.Instance.Session;
+        var player = AppManager.Instance.Player;
+        var settings = AppManager.Instance.Settings;
+
+        // --- Head Data ---
+        Transform cameraT = player.CameraPosition();
+        Vector3 headPos = cameraT != null ? cameraT.position : Vector3.zero;
+        Vector3 headRot = cameraT != null ? cameraT.eulerAngles : Vector3.zero;
+
+        // --- Hand & Gaze Data ---
+        Vector3 lPos, lRot, rPos, rRot;
+        Vector3 gazeOrig, gazeDir;
+
+        if (session.IsVRMode)
+        {
+            player.GetVRHandWorldData(out lPos, out lRot, out rPos, out rRot);
+            player.GetVRGazeWorldData(out gazeOrig, out gazeDir); // <--- Call new method
+        }
+        else
+        {
+            lPos = lRot = rPos = rRot = Vector3.zero;
+            // Desktop fallback: Gaze = Head Position + Head Forward
+            if (cameraT != null)
+            {
+                gazeOrig = cameraT.position;
+                gazeDir = cameraT.forward;
+            }
+            else
+            {
+                gazeOrig = Vector3.zero;
+                gazeDir = Vector3.forward;
+            }
+        }
+
+        // Clean event name
+        if (!string.IsNullOrEmpty(eventName))
+        {
+            eventName = eventName.Replace("\n", " ").Replace("\r", " ").Replace(",", ";");
+        }
+
+        return new LogFrame
+        {
+            Event = eventName,
+            ParticipantID = session.ParticipantId,
+            SigmaScale = settings.SigmaScale,
+            MapType = session.MapType,
+            State = session.State,
+            TrialNumber = session.TrialNumber,
+            GlobalTime = Time.time,
+
+            HeadPos = headPos,
+            HeadRotEuler = headRot,
+            StimulusIntensity = session.State == SessionDataManager.GameState.Trial ? player.StimulusIntensity : -1,
+            SpawnPosition = session.SpawnPosition,
+            GoalPosition = session.GoalPosition,
+
+            // New Gaze Fields
+            GazeOrigin = gazeOrig,
+            GazeDirection = gazeDir,
+
+            // Hand Fields
+            LHandPos = lPos,
+            LHandRotEuler = lRot,
+            RHandPos = rPos,
+            RHandRotEuler = rRot
+        };
+    }
+
     public void BeginLogging()
     {
         if (isLogging) return;
 
-        // Get Paths from Session Manager
         string folder = AppManager.Instance.Session.GetParticipantFolderPath();
         string fileName = AppManager.Instance.Session.GetCSVName();
         fullFilePath = Path.Combine(folder, fileName);
 
-        // TODO: Ask if lab wants to use a settings snapshot
-        /*try
-        {
-            // Shouldn't be necessary since data logging only occurs outside the title screen
-            // AppManager.Instance.Settings.SaveToDisk();
+        // Updated Header with Gaze columns
+        string header = "Event,ParticipantID,SigmaScale,MapType,State,TrialNumber,GlobalTime,HeadX,HeadY,HeadZ,RotX,RotY,RotZ,StimulusIntensity,SpawnX,SpawnZ,GoalX,GoalZ," +
+                        "GazeOriginX,GazeOriginY,GazeOriginZ,GazeDirX,GazeDirY,GazeDirZ," +
+                        "LHandX,LHandY,LHandZ,LRotX,LRotY,LRotZ,RHandX,RHandY,RHandZ,RRotX,RRotY,RRotZ\n";
 
-            string sourceSettings = AppManager.Instance.Settings.FilePath;
-            string destSettings = Path.Combine(folder, "settings_used_for_this_study.json");
-
-            // Copy (overwrite = true ensures we don't crash if we restart the same participant)
-            File.Copy(sourceSettings, destSettings, true);
-
-            // Debug.Log($"[LogManager] Copied settings snapshot to: {destSettings}");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[LogManager] Failed to create settings snapshot: {e.Message}");
-        }*/
-
-        // Write Header (Synchronous is fine here because it happens once)
-        // Handle VR vs Desktop headers always log same data
-        string header = "Event,ParticipantID,SigmaScale,Gaussian,State,TrialNumber,GlobalTime,HeadX,HeadY,HeadZ,RotX,RotY,RotZ,StimulusIntensity,SpawnX,SpawnZ,GoalX,GoalZ\n";
         File.WriteAllText(fullFilePath, header);
 
-        // Reset
         activeBuffer.Clear();
         logTimer = 0f;
-
-        // Cache setting
-        // If the user somehow saved "0" or "-1" in JSON, we clamp it here to be safe.
         int settingValue = AppManager.Instance.Settings.BufferSizeBeforeWrite;
         bufferLimit = Mathf.Clamp(settingValue, MinBufferSize, MaxBufferSize);
-
         isLogging = true;
         Debug.Log($"[LogManager] Recording to: {fullFilePath}");
     }
@@ -92,143 +203,60 @@ public class LogManager
     {
         if (!isLogging) return;
         isLogging = false;
-
         if (activeBuffer.Count > 0) FlushBufferToDisk();
-
-        // Ensure all queued writes finish before we consider logging done
         try { lastWriteTask.Wait(); }
         catch (Exception e) { Debug.LogError($"[LogManager] Final write wait failed: {e.Message}"); }
-
         Debug.Log("[LogManager] Recording stopped.");
     }
 
-    public void  Logging()
-    {
-        if (!isLogging) return;
+    public void PauseLogging() { if (isLogging) paused = true; }
+    public void ResumeLogging() { if (isLogging) paused = false; }
 
-        paused = true;
-    }
-
-    public void ResumeLogging()
-    {
-        if (!isLogging) return;
-
-        paused = false;
-    }
-
-    // Called manually by AppManager.Update
     public void ManualUpdate()
     {
         if (!isLogging || paused) return;
 
-        // Throttle
         logTimer += Time.deltaTime;
         if (logTimer < AppManager.Instance.Settings.DataLogInterval) return;
         logTimer = 0f;
 
-        // Capture
-        Transform cameraT = AppManager.Instance.Player.CameraPosition();
+        activeBuffer.Add(CaptureState(null));
 
-        activeBuffer.Add(new LogFrame
-        {
-            ParticipantID = AppManager.Instance.Session.ParticipantId,
-            SigmaScale = AppManager.Instance.Settings.SigmaScale,
-            Gaussian = StimulusManager.MapTypes[AppManager.Instance.Settings.MapTypeIndex],
-            State = AppManager.Instance.Session.State,
-            TrialNumber = AppManager.Instance.Session.TrialNumber,
-            GlobalTime = Time.time,
-            HeadPos = cameraT.position,
-            HeadRotEuler = cameraT.eulerAngles,
-            StimulusIntensity = AppManager.Instance.Session.State == SessionDataManager.GameState.Trial ? AppManager.Instance.Player.StimulusIntensity : -1,
-            SpawnPosition = AppManager.Instance.Session.SpawnPosition,
-            GoalPosition = AppManager.Instance.Session.GoalPosition
-        });
-
-        // Safety Valve Flush
-        // If we hit 30,000, dump it now to free up RAM. 
-        // Otherwise, wait for EndLogging().
-        if (activeBuffer.Count >= bufferLimit)
-        {
-            FlushBufferToDisk();
-        }
+        if (activeBuffer.Count >= bufferLimit) FlushBufferToDisk();
     }
 
     public void LogEvent(string input)
     {
         if (!isLogging) return;
-
-        string evt = (input ?? "").Replace("\n", " ").Replace("\r", " ").Replace(",", ";");
-
-        Transform cameraT = AppManager.Instance.Player.CameraPosition();
-        Vector3 pos = cameraT != null ? cameraT.position : Vector3.zero;
-        Vector3 rot = cameraT != null ? cameraT.eulerAngles : Vector3.zero;
-
-        activeBuffer.Add(new LogFrame
-        {
-            Event = evt,
-            ParticipantID = AppManager.Instance.Session.ParticipantId,
-            SigmaScale = AppManager.Instance.Settings.SigmaScale,
-            Gaussian = StimulusManager.MapTypes[AppManager.Instance.Settings.MapTypeIndex],
-            State = AppManager.Instance.Session.State,
-            TrialNumber = AppManager.Instance.Session.TrialNumber,
-            GlobalTime = Time.time,
-            HeadPos = pos,
-            HeadRotEuler = rot,
-            StimulusIntensity = AppManager.Instance.Session.State == SessionDataManager.GameState.Trial ? AppManager.Instance.Player.StimulusIntensity : -1,
-            SpawnPosition = AppManager.Instance.Session.SpawnPosition,
-            GoalPosition = AppManager.Instance.Session.GoalPosition
-        });
-
-        if (activeBuffer.Count >= bufferLimit)
-            FlushBufferToDisk();
+        activeBuffer.Add(CaptureState(input));
+        if (activeBuffer.Count >= bufferLimit) FlushBufferToDisk();
     }
-
 
     private void FlushBufferToDisk()
     {
         if (!isLogging && activeBuffer.Count == 0) return;
 
+        string path = fullFilePath;
+
         List<LogFrame> dataToWrite = new List<LogFrame>(activeBuffer);
         activeBuffer.Clear();
 
-        // Chain writes so they run one after another
         lastWriteTask = lastWriteTask.ContinueWith(_ =>
             Task.Run(() =>
             {
                 try
                 {
-                    StringBuilder sb = new StringBuilder(dataToWrite.Count * 100);
+                    // Increased buffer estimate for extra columns
+                    StringBuilder sb = new StringBuilder(dataToWrite.Count * 256);
 
                     foreach (var frame in dataToWrite)
                     {
-                        string evt = frame.Event ?? "";
-                        evt = evt.Replace("\"", "\"\"");
-                        sb.Append("\"").Append(evt).Append("\"").Append(",");
-
-                        sb.Append("\"").Append(frame.ParticipantID).Append("\"").Append(",");
-                        sb.Append(frame.SigmaScale).Append(",");
-                        sb.Append("\"").Append(frame.Gaussian).Append("\"").Append(",");
-                        sb.Append(frame.State.ToString()).Append(",");
-                        sb.Append(frame.TrialNumber).Append(",");
-                        sb.Append(frame.GlobalTime.ToString("F3")).Append(",");
-                        sb.Append(frame.HeadPos.x.ToString("F3")).Append(",");
-                        sb.Append(frame.HeadPos.y.ToString("F3")).Append(",");
-                        sb.Append(frame.HeadPos.z.ToString("F3")).Append(",");
-                        sb.Append(frame.HeadRotEuler.x.ToString("F3")).Append(",");
-                        sb.Append(frame.HeadRotEuler.y.ToString("F3")).Append(",");
-                        sb.Append(frame.HeadRotEuler.z.ToString("F3")).Append(",");
-                        sb.Append(frame.StimulusIntensity.ToString("F3")).Append(",");
-                        sb.Append(frame.SpawnPosition.x.ToString("F3")).Append(",");
-                        sb.Append(frame.SpawnPosition.y.ToString("F3")).Append(",");
-                        sb.Append(frame.GoalPosition.x.ToString("F3")).Append(",");
-                        sb.Append(frame.GoalPosition.y.ToString("F3")).Append(",");
-                        sb.AppendLine();
+                        frame.AppendToRow(sb);
                     }
-
 
                     lock (fileWriteLock)
                     {
-                        File.AppendAllText(fullFilePath, sb.ToString());
+                        File.AppendAllText(path, sb.ToString());
                     }
                 }
                 catch (Exception e)

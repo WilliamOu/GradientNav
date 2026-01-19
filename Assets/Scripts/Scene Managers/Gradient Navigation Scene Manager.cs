@@ -81,6 +81,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         if (timeRemaining <= 0f)
         {
             Debug.Log($"[Trial {trialIndex + 1}] Time expired.");
+            AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
             EndTrial();
             return;
         }
@@ -152,11 +153,14 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
                 startXZ = spec.SpawnXZ;
                 targetXZ = AppManager.Instance.Session.GoalPosition; // set by GenerateMap (override or map target)
+
+                AppManager.Instance.Session.MapType = StimulusManager.MapTypes[spec.MapTypeIndex];
             }
             else
             {
                 // Random path (seeded or not)
                 SetupPositions(trialIndex, planMode, out startXZ, out targetXZ);
+                AppManager.Instance.Session.MapType = StimulusManager.MapTypes[AppManager.Instance.Settings.MapTypeIndex];
             }
 
             AppManager.Instance.Player.Minimap.RefreshMinimap();
@@ -200,6 +204,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     private void HandleSubmission()
     {
+        AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
+
         float currentIntensity = AppManager.Instance.Player.StimulusIntensity;
         bool isSuccess = currentIntensity >= AppManager.Instance.Settings.SuccessThreshold;
 
@@ -219,7 +225,10 @@ public class GradientNavigationSceneManager : MonoBehaviour
             Debug.Log($"[Trial {trialIndex + 1}] Failed (no attempts remaining).");
             AppManager.Instance.Logger.LogEvent($"TRIAL_FAIL {trialIndex}");
             EndTrial();
+            return;
         }
+
+        AppManager.Instance.Player.SetUIMessage("Try again!", Color.magenta, 4);
     }
 
     private void EndTrial()
@@ -269,7 +278,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
         }
 
         // VR: walk-orient back to where they paused, then resume
-        SetState(SessionDataManager.GameState.Trial); // StartCoroutine(UnpauseVRRoutine()); (CURRENTLY DISABLED)
+        if (AppManager.Instance.Settings.ReorientAfterPause)
+            SetState(SessionDataManager.GameState.Trial);
     }
 
     private IEnumerator UnpauseVRRoutine()
@@ -378,8 +388,6 @@ public class GradientNavigationSceneManager : MonoBehaviour
         outTargetXZ = t;
     }
 
-
-    // TODO: For multiple test attempts, send a message 
 
     private bool GetSubmitInput()
     {

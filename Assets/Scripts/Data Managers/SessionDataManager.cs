@@ -11,6 +11,7 @@ public class SessionDataManager
     public enum GameState { Idle, Orient, Paused, Trial }
 
     public int TrialNumber = -1;
+    public string MapType;
     public Vector2 SpawnPosition = Vector2.zero;
     public Vector2 GoalPosition = Vector2.zero;
     public GameState State = GameState.Idle;

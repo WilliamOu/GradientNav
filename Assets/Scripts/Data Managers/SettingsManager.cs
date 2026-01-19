@@ -64,7 +64,10 @@ public class SettingsManager
     public float DataLogInterval { get; private set; }
     public int BufferSizeBeforeWrite { get; private set; }
     public bool EnablePause { get; private set; }
-    public bool EnableSafetyWalls { get; private set; } // TODO: Implement
+    public bool ReorientAfterPause { get; private set; }
+    public bool EnableSafetyWalls { get; private set; }
+    public float SafetyWallRevealRadius { get; private set; }
+    public float SafetyWallHandRevealRadius { get; private set; }
     public bool ExperimentalMode { get; private set; }
     public int ParticipantMaxTestCount { get; private set; }
     public int TrialCount { get; private set; }
@@ -113,7 +116,7 @@ public class SettingsManager
         {
             Name = "Move Speed",
             Description = "(Desktop Only) Use to match the speed of the first person player controller to the speed of VR participants.",
-            Value = 8f,
+            Value = 2f,
             Min = 0f,
             Max = float.MaxValue,
         });
@@ -181,9 +184,34 @@ public class SettingsManager
 
         SettingsList.Add(new BoolSetting
         {
+            Name = "Reorient After Pause",
+            Description = "(VR Only) Make the player walk back to where they were standing when they paused the trial via an orientation trial.",
+            Value = false,
+        });
+
+        SettingsList.Add(new BoolSetting
+        {
             Name = "Enable Safety Walls",
             Description = "(VR Only) Displays virtual walls when close to the map boundaries so the participant does not collide with a physical wall.",
             Value = true,
+        });
+
+        SettingsList.Add(new FloatSetting
+        {
+            Name = "Safety Wall Reveal Radius",
+            Description = "How close the player's head has to be to the safety wall to reveal it.",
+            Value = 1.0f,
+            Min = 0.1f,
+            Max = 9999f,
+        });
+
+        SettingsList.Add(new FloatSetting
+        {
+            Name = "Safety Wall Hand Reveal Radius",
+            Description = "How close the player's controllers/hands have to be to the safety wall to reveal it.",
+            Value = 0.6f,
+            Min = 0.1f,
+            Max = 9999f,
         });
 
         SettingsList.Add(new BoolSetting
@@ -261,7 +289,7 @@ public class SettingsManager
         MouseSensitivity = GetSetting<FloatSetting>("Mouse Sensitivity")?.Value ?? 1.0f;
         EnableMouseX = GetSetting<BoolSetting>("Enable Mouse X")?.Value ?? true;
         EnableMouseY = GetSetting<BoolSetting>("Enable Mouse Y")?.Value ?? false;
-        MoveSpeed = GetSetting<FloatSetting>("Move Speed")?.Value ?? 8.0f;
+        MoveSpeed = GetSetting<FloatSetting>("Move Speed")?.Value ?? 2.0f;
         MapLength = GetSetting<FloatSetting>("Map Length")?.Value ?? 10.0f;
         MapWidth = GetSetting<FloatSetting>("Map Width")?.Value ?? 10.0f;
         TimeToSeek = GetSetting<FloatSetting>("Time To Seek")?.Value ?? 30.0f;
@@ -269,7 +297,10 @@ public class SettingsManager
         DataLogInterval = GetSetting<FloatSetting>("Data Log Interval")?.Value ?? 0.011f;
         BufferSizeBeforeWrite = GetSetting<IntegerSetting>("Buffer Size Before Write")?.Value ?? LogManager.MinBufferSize;
         EnablePause = GetSetting<BoolSetting>("Enable Pause")?.Value ?? false;
+        ReorientAfterPause = GetSetting<BoolSetting>("Reorient After Pause")?.Value ?? false;
         EnableSafetyWalls = GetSetting<BoolSetting>("Enable Safety Walls")?.Value ?? true;
+        SafetyWallRevealRadius = GetSetting<FloatSetting>("Safety Wall Reveal Radius")?.Value ?? 1.0f;
+        SafetyWallHandRevealRadius = GetSetting<FloatSetting>("Safety Wall Hand Reveal Radius")?.Value ?? 0.6f;
         ExperimentalMode = GetSetting<BoolSetting>("Experimental Mode")?.Value ?? false;
         ParticipantMaxTestCount = GetSetting<IntegerSetting>("Participant Max Test Count")?.Value ?? 1;
         TrialCount = GetSetting<IntegerSetting>("Trial Count")?.Value ?? 3;

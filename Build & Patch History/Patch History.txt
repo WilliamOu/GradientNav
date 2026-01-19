@@ -2,6 +2,14 @@
 Patch History For GradientNav
 =============================
 
+Version 0.1.7.0 - Jan 19, 2026
+- Implemented safety walls.
+- Overhauled LogManager, unifying standard logging and event logging.
+- Added controller and gaze tracking, plus associated data logging functionality.
+- Added a setting for enabling/disabling reorientation after pausing with the VR player.
+- Added a prompt message for failing the trial submission, assuming multiple submission attempts are given.
+- Fixed a bug where the desktop player move speed did not properly reference settings.
+
 Version 0.1.6.0 - Jan 17, 2026
 - Added torus and multi-peak map options.
 - Added a setting for enabling/disabling the pause system in game.

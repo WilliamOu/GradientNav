@@ -18,7 +18,7 @@ public class DesktopPlayerControls : MonoBehaviour
     {
         Cursor.lockState = CursorLockMode.Locked;
         mouseSensitivity = AppManager.Instance.Settings.MouseSensitivity;
-        // moveSpeed = AppManager.Instance.Settings.MoveSpeed;
+        moveSpeed = AppManager.Instance.Settings.MoveSpeed;
     }
 
     void Update()

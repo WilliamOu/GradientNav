@@ -2,11 +2,11 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
 using Unity.VisualScripting;
+using UnityEngine.XR;
 using static UnityEngine.GraphicsBuffer;
 using Unity.XR.CoreUtils;
 using UnityEngine.XR.Interaction.Toolkit;
 
-// TODO: Add support for safety boundaries, since those are UI elements
 public class PlayerManager : MonoBehaviour
 {
     public bool PlayerSpawned { get; private set; }
@@ -22,6 +22,9 @@ public class PlayerManager : MonoBehaviour
     private PlayerUIReferences activeUI;
     private TeleportationProvider teleportationProvider;
     private Transform xrOrigin;
+    private InputDevice leftHandDevice;
+    private InputDevice rightHandDevice;
+    private InputDevice eyeTrackingDevice;
 
     public void Init(GameObject vrPlayerPrefab, GameObject desktopPlayerPrefab)
     {
@@ -54,7 +57,10 @@ public class PlayerManager : MonoBehaviour
         if (AppManager.Instance.Session.IsVRMode)
         {
             teleportationProvider = newPlayer.GetComponentInChildren<TeleportationProvider>(true);
-            xrOrigin = teleportationProvider.transform;
+            xrOrigin = teleportationProvider != null ? teleportationProvider.transform : newPlayer.transform;
+
+            leftHandDevice = default(InputDevice);
+            rightHandDevice = default(InputDevice);
         }
 
         Minimap = newPlayer.GetComponentInChildren<MinimapRenderer>(true);
@@ -91,6 +97,92 @@ public class PlayerManager : MonoBehaviour
         }
 
         DisableBlackscreen();
+    }
+
+    public void GetVRHandWorldData(out Vector3 lPos, out Vector3 lRot, out Vector3 rPos, out Vector3 rRot)
+    {
+        // Defaults
+        lPos = Vector3.zero; lRot = Vector3.zero;
+        rPos = Vector3.zero; rRot = Vector3.zero;
+
+        // If not in VR or player not spawned, return zeros
+        if (!AppManager.Instance.Session.IsVRMode || xrOrigin == null) return;
+
+        // Ensure Devices are valid
+        if (!leftHandDevice.isValid) leftHandDevice = InputDevices.GetDeviceAtXRNode(XRNode.LeftHand);
+        if (!rightHandDevice.isValid) rightHandDevice = InputDevices.GetDeviceAtXRNode(XRNode.RightHand);
+
+        // Get Local Data (Relative to XR Rig)
+        Vector3 lPosLocal = Vector3.zero; Quaternion lRotLocal = Quaternion.identity;
+        Vector3 rPosLocal = Vector3.zero; Quaternion rRotLocal = Quaternion.identity;
+
+        bool lValid = leftHandDevice.TryGetFeatureValue(CommonUsages.devicePosition, out lPosLocal) &&
+                      leftHandDevice.TryGetFeatureValue(CommonUsages.deviceRotation, out lRotLocal);
+
+        bool rValid = rightHandDevice.TryGetFeatureValue(CommonUsages.devicePosition, out rPosLocal) &&
+                      rightHandDevice.TryGetFeatureValue(CommonUsages.deviceRotation, out rRotLocal);
+
+        // Transform Local Data to World Space using the XR Origin
+        if (lValid)
+        {
+            lPos = xrOrigin.TransformPoint(lPosLocal);
+            lRot = (xrOrigin.rotation * lRotLocal).eulerAngles;
+        }
+
+        if (rValid)
+        {
+            rPos = xrOrigin.TransformPoint(rPosLocal);
+            rRot = (xrOrigin.rotation * rRotLocal).eulerAngles;
+        }
+    }
+
+    public void GetVRGazeWorldData(out Vector3 gazeOrigin, out Vector3 gazeDirection)
+    {
+        // If anything fails, we assume the user is looking where the camera points.
+        Transform headT = activeUI != null ? activeUI.PlayerCamera.transform : null;
+        if (headT != null)
+        {
+            gazeOrigin = headT.position;
+            gazeDirection = headT.forward;
+        }
+        else
+        {
+            gazeOrigin = Vector3.zero;
+            gazeDirection = Vector3.forward;
+        }
+
+        if (!AppManager.Instance.Session.IsVRMode || xrOrigin == null) return;
+
+        if (!eyeTrackingDevice.isValid)
+        {
+            // We look for a device that supports EyeTracking
+            var potentialDevices = new List<InputDevice>();
+            InputDevices.GetDevicesWithCharacteristics(InputDeviceCharacteristics.EyeTracking, potentialDevices);
+
+            if (potentialDevices.Count > 0)
+                eyeTrackingDevice = potentialDevices[0];
+        }
+
+        if (eyeTrackingDevice.isValid)
+        {
+            // Note: Some headsets provide 'centerEyePosition/Rotation', others use 'devicePosition/Rotation' for eyes
+            // We check both to be safe.
+            bool hasPos = eyeTrackingDevice.TryGetFeatureValue(CommonUsages.centerEyePosition, out Vector3 eyePosLocal)
+                          || eyeTrackingDevice.TryGetFeatureValue(CommonUsages.devicePosition, out eyePosLocal);
+
+            bool hasRot = eyeTrackingDevice.TryGetFeatureValue(CommonUsages.centerEyeRotation, out Quaternion eyeRotLocal)
+                          || eyeTrackingDevice.TryGetFeatureValue(CommonUsages.deviceRotation, out eyeRotLocal);
+
+            if (hasPos && hasRot)
+            {
+                // Transform from XR Rig Local Space to World Space
+                gazeOrigin = xrOrigin.TransformPoint(eyePosLocal);
+
+                // For Gaze, we usually care about the Direction Vector, not just the Euler angles
+                Quaternion worldRot = xrOrigin.rotation * eyeRotLocal;
+                gazeDirection = worldRot * Vector3.forward;
+            }
+        }
     }
 
     public void ToggleMovement()
@@ -195,16 +287,17 @@ public class PlayerManager : MonoBehaviour
 
         StimulusIntensity = AppManager.Instance.Stimulus.GetIntensity(activeUI.PlayerCamera.transform.position);
 
-        if (activeUI.UIText != null && activeUI.UIText.gameObject.activeSelf)
-        {
-            int intensity255 = Mathf.RoundToInt(StimulusIntensity * 255f);
-            activeUI.UIText.text = $"Intensity: {StimulusIntensity:F3} ({intensity255})";
-        }
-
         if (activeUI.GradientImage != null)
         {
             Color c = new Color(StimulusIntensity, StimulusIntensity, StimulusIntensity, 1f);
             activeUI.GradientImage.color = c;
+        }
+
+        if (!AppManager.Instance.Settings.ExperimentalMode) return;
+        if (activeUI.UIText != null && activeUI.UIText.gameObject.activeSelf)
+        {
+            int intensity255 = Mathf.RoundToInt(StimulusIntensity * 255f);
+            activeUI.UIText.text = $"Intensity: {StimulusIntensity:F3} ({intensity255})";
         }
     }
 
