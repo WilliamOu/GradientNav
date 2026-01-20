@@ -1,82 +1,82 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class GradientNavigationSceneManager : MonoBehaviour
 {
-    private enum TrialPlanMode
-    {
-        RandomNoSeed,
-        RandomSeeded,
-        Csv
-    }
+    // ------------------------------------------------------------------------
+    // STATE & VARIABLES
+    // ------------------------------------------------------------------------
 
-    private sealed class TrialSpec
-    {
-        public int MapTypeIndex;
-        public Vector2 SpawnXZ;
-        public Vector2 CenterXZ;                  // used by non-multipeak maps
-        public Vector2? GoalOverride;             // first goal from Goals list, if any
-        public List<Vector2> ExtraGoals = new();  // optional, not used yet
-        public List<PeakSpec> Peaks;              // only for Multi-Peak
-    }
-
-    private TrialPlanMode planMode;
-    private List<TrialSpec> csvTrials;
-
-    [SerializeField] private float minStartDistance = 1f;
-
-    // State
+    // Current State
     private SessionDataManager.GameState state;
 
+    // Trial Counters
     private int trialIndex;
     private int attemptsRemaining;
     private float timeRemaining;
-
     private bool trialComplete;
 
-    // Current trial randomized data
+    // Current Trial Data
     private Vector2 startXZ;
-    private Vector2 targetXZ;
 
-    // Pause return position (VR unpause uses orient-walk back here)
-    private Vector2 pausedReturnXZ;
+    // Pause Logic
+    private Vector2 pausedReturnXZ; // Where the player was when they paused
+
+    // Training Flags
+    private bool allowTrainingPause = false;
+
+    // ------------------------------------------------------------------------
+    // UNITY LIFECYCLE
+    // ------------------------------------------------------------------------
 
     private void Start()
     {
         SetState(SessionDataManager.GameState.Idle);
+
+        // Spawn the player at origin initially
         AppManager.Instance.Player.SpawnPlayer(Vector3.zero, Quaternion.identity);
+
+        // Initialize the TrialManager (Loads CSV or preps Random Seed)
+        AppManager.Instance.Trial.Init();
+
+        // Begin the experiment flow
         StartCoroutine(RunAllTrials());
     }
 
     private void Update()
     {
+        // 1. Always update passive systems
         AppManager.Instance.Logger.ManualUpdate();
         AppManager.Instance.Player.Minimap.ManualUpdate();
 
-        // Pause/unpause toggle
+        // 2. Input: Pause / Unpause
         if (GetPauseToggleInput())
         {
-            if (state == SessionDataManager.GameState.Trial) Pause();
-            else if (state == SessionDataManager.GameState.Paused) Unpause();
-            return;
+            if (state == SessionDataManager.GameState.Trial)
+                Pause();
+            else if (state == SessionDataManager.GameState.Training && allowTrainingPause)
+                Pause(false);
+            else if (state == SessionDataManager.GameState.Paused && allowTrainingPause)
+                Unpause(false);
+            else if (state == SessionDataManager.GameState.Paused)
+                Unpause();
+
+            return; // Don't process other inputs this frame
         }
 
+        // 3. Input: VR Recenter (Available generally if VR)
         if (AppManager.Instance.Session.IsVRMode && GetRecenteringInput())
         {
             AppManager.Instance.Player.TeleportVRToCoordinates(0, 0);
         }
 
-        // Only Trial state runs game loop logic
+        // 4. Game Logic (Only runs during Active Trial)
         if (state != SessionDataManager.GameState.Trial) return;
 
         AppManager.Instance.Player.UpdateStimulusUI();
 
+        // Timer
         timeRemaining -= Time.deltaTime;
         if (timeRemaining <= 0f)
         {
@@ -86,115 +86,185 @@ public class GradientNavigationSceneManager : MonoBehaviour
             return;
         }
 
+        // Submission
         if (GetSubmitInput())
         {
             HandleSubmission();
         }
     }
 
+    // ------------------------------------------------------------------------
+    // MAIN EXPERIMENT LOOP
+    // ------------------------------------------------------------------------
+
     private IEnumerator RunAllTrials()
     {
-        planMode = TrialPlanMode.RandomNoSeed;
-        csvTrials = null;
+        AppManager.Instance.Logger.BeginLogging();
+        // --- PHASE 1: TRAINING ---
+        if (AppManager.Instance.Settings.EnableTraining && AppManager.Instance.Session.IsVRMode)
+        {
+            yield return RunTrainingPhase();
+        }
 
-        if (TryGetCsvPathFromSettings(out string csvPath))
-        {
-            if (File.Exists(csvPath))
-            {
-                try
-                {
-                    csvTrials = LoadTrialsFromCsv(csvPath);
-                    if (csvTrials != null && csvTrials.Count > 0)
-                        planMode = TrialPlanMode.Csv;
-                    else
-                        Debug.LogWarning("CSV had no valid trials, falling back to random (no seed).");
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogWarning($"Failed to load CSV trials, falling back to random (no seed). Error: {ex.Message}");
-                }
-            }
-            else
-            {
-                Debug.LogWarning("Selected CSV does not exist, falling back to random (no seed).");
-            }
-        }
-        else
-        {
-            // Not a CSV selection, interpret first two options
-            // You currently store "TrialSourceIndex" in Settings, so:
-            planMode = (AppManager.Instance.Settings.TrialSourceIndex == 1)
-                ? TrialPlanMode.RandomSeeded
-                : TrialPlanMode.RandomNoSeed;
-        }
+        // --- PHASE 2: EXPERIMENT TRIALS ---
 
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
-        AppManager.Instance.Logger.BeginLogging();
-        int totalTrials = (planMode == TrialPlanMode.Csv) ? csvTrials.Count : AppManager.Instance.Settings.TrialCount;
+
+        int totalTrials = AppManager.Instance.Trial.GetTotalTrialCount();
 
         for (trialIndex = 0; trialIndex < totalTrials; trialIndex++)
         {
-            // Pick new randomized positions every loop
-            TrialSpec spec;
+            // A. Get Data from TrialManager
+            TrialSpec spec = AppManager.Instance.Trial.GetTrial(trialIndex);
 
-            if (planMode == TrialPlanMode.Csv)
-            {
-                spec = csvTrials[trialIndex];
+            // B. Generate Map (Visuals + Heatmap math)
+            // Note: Even if we loaded from CSV, we must Generate to set up the Stimulus intensity logic
+            AppManager.Instance.Stimulus.GenerateMap(
+                spec.MapTypeIndex,
+                AppManager.Instance.Settings.MapWidth,
+                AppManager.Instance.Settings.MapLength,
+                spec.CenterXZ,
+                goalOverride: spec.GoalOverride,
+                multiPeakSpecs: spec.Peaks
+            );
 
-                // Apply CSV-defined map immediately here so intensity matches before teleport
-                AppManager.Instance.Stimulus.GenerateMap(
-                    spec.MapTypeIndex,
-                    AppManager.Instance.Settings.MapWidth,
-                    AppManager.Instance.Settings.MapLength,
-                    spec.CenterXZ,
-                    goalOverride: spec.GoalOverride,
-                    multiPeakSpecs: spec.Peaks
-                );
+            // C. Setup Session Data
+            startXZ = spec.SpawnXZ;
+            Vector2 targetXZ = AppManager.Instance.Stimulus.GetTargetPosition(); // Truth source from Stimulus
 
-                startXZ = spec.SpawnXZ;
-                targetXZ = AppManager.Instance.Session.GoalPosition; // set by GenerateMap (override or map target)
-
-                AppManager.Instance.Session.MapType = StimulusManager.MapTypes[spec.MapTypeIndex];
-            }
-            else
-            {
-                // Random path (seeded or not)
-                SetupPositions(trialIndex, planMode, out startXZ, out targetXZ);
-                AppManager.Instance.Session.MapType = StimulusManager.MapTypes[AppManager.Instance.Settings.MapTypeIndex];
-            }
-
+            AppManager.Instance.Session.MapType = StimulusManager.MapTypes[spec.MapTypeIndex];
             AppManager.Instance.Player.Minimap.RefreshMinimap();
-
             AppManager.Instance.Session.TrialNumber = trialIndex + 1;
             AppManager.Instance.Session.SpawnPosition = startXZ;
             AppManager.Instance.Session.GoalPosition = targetXZ;
 
-            // Reset per-trial counters
+            // D. Reset Counters
             attemptsRemaining = AppManager.Instance.Settings.ParticipantMaxTestCount;
             timeRemaining = AppManager.Instance.Settings.TimeToSeek;
             trialComplete = false;
 
-            // Move player to start:
+            // E. Move Player to Start
             if (!AppManager.Instance.Session.IsVRMode)
+            {
                 AppManager.Instance.Player.Teleport(startXZ.x, startXZ.y);
+            }
             else
+            {
                 yield return WalkOrientTo(startXZ);
+            }
 
-            // Start trial
+            // F. Begin Trial
             SetState(SessionDataManager.GameState.Trial);
             AppManager.Instance.Logger.LogEvent($"TRIAL_START {trialIndex}");
 
-            // Wait until the trial truly completes (pause does not count)
+            // G. Wait for Completion (EndTrial() sets trialComplete = true)
             yield return new WaitUntil(() => trialComplete);
 
+            // H. Clean up
             SetState(SessionDataManager.GameState.Idle);
         }
 
-        // All trials complete
+        // --- PHASE 3: FINISH ---
         SetState(SessionDataManager.GameState.Idle);
         AppManager.Instance.Logger.EndLogging();
         SceneManager.LoadScene("Closing Scene");
     }
+
+    // ------------------------------------------------------------------------
+    // TRAINING PHASE
+    // ------------------------------------------------------------------------
+
+    private IEnumerator RunTrainingPhase()
+    {
+        AppManager.Instance.Player.EnableBlackscreen();
+        SetState(SessionDataManager.GameState.Training);
+        Debug.Log("Starting VR Training Phase...");
+
+        AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
+        // 1. Wait for Administrator
+        AppManager.Instance.Player.SetUIMessage("[TRAINING]\nPlease wait as the study administrator provides an orientation.", Color.white, -1);
+        yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.Return));
+
+        // 2. Brightness explanation
+        string msg = $"The brightness of the screen will change as you move around the scene." +
+                     $"\n(Press either trigger key to continue)";
+        AppManager.Instance.Player.SetUIMessage(msg, Color.white, -1);
+        yield return WaitForAnyTrigger();
+
+        msg = $"When you think you are at the point of maximum brightness, press the trigger key on either of your controllers." +
+              $"\n(Press either trigger key to continue)";
+        AppManager.Instance.Player.SetUIMessage(msg, Color.white, -1);
+        yield return WaitForAnyTrigger();
+
+        msg = $"You will be given {AppManager.Instance.Settings.ParticipantMaxTestCount} attempt(s) to find the point of maximum brightness." +
+              $"\n(Press either trigger key to continue)";
+        AppManager.Instance.Player.SetUIMessage(msg, Color.white, -1);
+        yield return WaitForAnyTrigger();
+
+        // 3. Recenter
+        AppManager.Instance.Player.SetUIMessage("Recenter the room now if necessary.\n(Press the select button on your right controller, or press either trigger key to skip this step)", Color.white, -1);
+        yield return WaitForTriggerOrRightSelect();
+
+        // 4. Pillar Explanation
+        AppManager.Instance.Player.SetUIMessage("At the beginning of each trial, you will be asked to walk to a location, as specified by a red pillar.\n(Press either trigger key to continue)", Color.white, -1);
+        yield return WaitForAnyTrigger();
+
+        AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
+
+        // 5. Orientation Trial (3m away)
+        AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
+        Vector2 target3m = CalculateSafe3mPoint();
+        yield return WalkOrientTo(target3m, false);
+        SetState(SessionDataManager.GameState.Training); // Restore state after orientation
+
+        // 6. Safety Walls
+        if (AppManager.Instance.Settings.EnableSafetyWalls)
+        {
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
+            AppManager.Instance.Player.SetUIMessage("Safety walls will warn you if you are too close to a wall. Walk to the pillar at the corner of the room.\n(Press either trigger key to continue)", Color.white, -1);
+            yield return WaitForAnyTrigger();
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
+            Vector2 cornerPos = GetClosestCornerInset(1f);
+            yield return WalkOrientTo(cornerPos, false);
+            SetState(SessionDataManager.GameState.Training);
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
+            AppManager.Instance.Player.SetUIMessage("Check to ensure the safety indicators appear.\n(Press either trigger key to continue)", Color.white, -1);
+            yield return WaitForAnyTrigger();
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
+        }
+
+        // 7. Pause Training
+        if (AppManager.Instance.Settings.EnablePause)
+        {
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
+            AppManager.Instance.Player.SetUIMessage("At any time you can pause the trial if you feel physical discomfort. Press the select button on your left hand to pause and unpause.", Color.white, -1);
+
+            allowTrainingPause = true;
+
+            // Wait for user to Pause
+            yield return new WaitUntil(() => state == SessionDataManager.GameState.Paused);
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
+
+            // Wait for user to Unpause
+            yield return new WaitUntil(() => state != SessionDataManager.GameState.Paused);
+
+            allowTrainingPause = false;
+            SetState(SessionDataManager.GameState.Training);
+        }
+
+        // 8. Ready
+        AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
+        AppManager.Instance.Player.SetUIMessage("You are now ready to begin the study. You may proceed when ready.\n(Press either trigger key to continue)", Color.white, -1);
+        yield return WaitForAnyTrigger();
+        AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
+
+        AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
+        AppManager.Instance.Player.DisableBlackscreen();
+    }
+
+    // ------------------------------------------------------------------------
+    // STATE & SUBMISSION LOGIC
+    // ------------------------------------------------------------------------
 
     private void SetState(SessionDataManager.GameState gameState)
     {
@@ -219,7 +289,6 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
         attemptsRemaining--;
 
-        // -1 means infinite attempts
         if (attemptsRemaining != -1 && attemptsRemaining <= 0)
         {
             Debug.Log($"[Trial {trialIndex + 1}] Failed (no attempts remaining).");
@@ -235,17 +304,23 @@ public class GradientNavigationSceneManager : MonoBehaviour
     {
         if (state != SessionDataManager.GameState.Trial) return;
 
-        // Stop trial logic immediately
         SetState(SessionDataManager.GameState.Idle);
         trialComplete = true;
     }
 
-    // ----------- Pause / Unpause -----------
-    private void Pause()
-    {
-        if (state != SessionDataManager.GameState.Trial) return;
+    // ------------------------------------------------------------------------
+    // PAUSE SYSTEM
+    // ------------------------------------------------------------------------
 
-        // Save where we were when paused (XZ)
+    private void Pause(bool adjustBlackscreen = true)
+    {
+        // Double check validity
+        bool validState = state == SessionDataManager.GameState.Trial ||
+                          (state == SessionDataManager.GameState.Training && allowTrainingPause);
+
+        if (!validState) return;
+
+        // Save position for return
         Vector3 camPos = AppManager.Instance.Player.CameraPosition().position;
         pausedReturnXZ = new Vector2(camPos.x, camPos.z);
 
@@ -255,139 +330,74 @@ public class GradientNavigationSceneManager : MonoBehaviour
         if (!AppManager.Instance.Session.IsVRMode)
             AppManager.Instance.Player.ToggleMovement();
 
-        // VR: no teleport, just halt trial logic
+        // Visual feedback
+        AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
         AppManager.Instance.Player.SetUIMessage("Paused", Color.white, -1);
         AppManager.Instance.Logger.LogEvent("PAUSED");
-        AppManager.Instance.Player.EnableBlackscreen();
+        if (adjustBlackscreen) AppManager.Instance.Player.EnableBlackscreen();
     }
 
-    private void Unpause()
+    private void Unpause(bool adjustBlackscreen = true)
     {
         if (state != SessionDataManager.GameState.Paused) return;
 
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
         AppManager.Instance.Logger.LogEvent("UNPAUSED");
-        AppManager.Instance.Player.DisableBlackscreen();
+        if (adjustBlackscreen) AppManager.Instance.Player.DisableBlackscreen();
 
+        // Desktop Handling
         if (!AppManager.Instance.Session.IsVRMode)
         {
-            // Desktop: restore movement + resume trial
             AppManager.Instance.Player.ToggleMovement();
-            SetState(SessionDataManager.GameState.Trial);
+            RestoreStateAfterUnpause();
             return;
         }
 
-        // VR: walk-orient back to where they paused, then resume
+        // VR Handling
         if (AppManager.Instance.Settings.ReorientAfterPause)
-            SetState(SessionDataManager.GameState.Trial);
+        {
+            StartCoroutine(UnpauseVRRoutine());
+        }
+        else
+        {
+            RestoreStateAfterUnpause();
+        }
     }
 
     private IEnumerator UnpauseVRRoutine()
     {
+        // Force them to walk back to where they paused to realign physical space
         yield return WalkOrientTo(pausedReturnXZ);
-        SetState(SessionDataManager.GameState.Trial);
+        RestoreStateAfterUnpause();
     }
 
-    // ----------- Orientation (VR only) -----------
-
-    private IEnumerator WalkOrientTo(Vector2 xz)
+    private void RestoreStateAfterUnpause()
     {
-        if (!AppManager.Instance.Session.IsVRMode)
-            yield break; // Orientation must never happen on desktop
+        if (allowTrainingPause) SetState(SessionDataManager.GameState.Training);
+        else SetState(SessionDataManager.GameState.Trial);
+    }
+
+    // ------------------------------------------------------------------------
+    // ORIENTATION (VR ONLY)
+    // ------------------------------------------------------------------------
+
+    private IEnumerator WalkOrientTo(Vector2 xz, bool adjustBlackscreen = true)
+    {
+        if (!AppManager.Instance.Session.IsVRMode) yield break;
 
         SetState(SessionDataManager.GameState.Orient);
         AppManager.Instance.Logger.LogEvent($"ORIENTATION_START {trialIndex}");
 
-        // Walk-only orientation
+        if (adjustBlackscreen) AppManager.Instance.Player.EnableBlackscreen();
         yield return AppManager.Instance.Orientation.WalkToLocation(xz.x, xz.y);
+        if (adjustBlackscreen) AppManager.Instance.Player.DisableBlackscreen();
 
         AppManager.Instance.Logger.LogEvent($"ORIENTATION_END {trialIndex}");
-        SetState(SessionDataManager.GameState.Idle);
     }
 
-    // ----------- Randomization -----------
-
-    private void SetupPositions(int tIndex, TrialPlanMode mode, out Vector2 outStartXZ, out Vector2 outTargetXZ)
-    {
-        float width = AppManager.Instance.Settings.MapWidth;
-        float length = AppManager.Instance.Settings.MapLength;
-        int mapType = AppManager.Instance.Settings.MapTypeIndex;
-
-        float spawnRadiusX = (width / 2f) * 0.9f;
-        float spawnRadiusZ = (length / 2f) * 0.9f;
-
-        Vector2 s = Vector2.zero;
-        Vector2 t = Vector2.zero;
-
-        // RNG choice
-        System.Random rng = null;
-        if (mode == TrialPlanMode.RandomSeeded)
-        {
-            // Per-trial seed so trial order changes don’t collapse everything
-            int baseSeed = AppManager.Instance.Settings.Seed;
-            int trialSeed = unchecked(baseSeed * 486187739 + (tIndex + 1) * 16777619);
-            rng = new System.Random(trialSeed);
-        }
-
-        float NextFloat(System.Random r, float min, float max)
-        {
-            if (r == null) return UnityEngine.Random.Range(min, max);
-            return (float)(min + (max - min) * r.NextDouble());
-        }
-
-        int safetyBreak = 0;
-        do
-        {
-            s = new Vector2(
-                NextFloat(rng, -spawnRadiusX, spawnRadiusX),
-                NextFloat(rng, -spawnRadiusZ, spawnRadiusZ)
-            );
-
-            Vector2 randomMapCenter = new Vector2(
-                NextFloat(rng, -spawnRadiusX, spawnRadiusX),
-                NextFloat(rng, -spawnRadiusZ, spawnRadiusZ)
-            );
-
-            // If you want Multi-Peak to be deterministic too, provide peaks when mapType == 3.
-            // Otherwise it will use whatever default/fallback you coded for empty peaks.
-            IReadOnlyList<PeakSpec> peaks = null;
-            if (mapType == 3)
-            {
-                float mapRadius = Mathf.Min(width, length) / 2f;
-                int peaksSeed;
-
-                if (mode == TrialPlanMode.RandomSeeded)
-                {
-                    peaksSeed = unchecked(AppManager.Instance.Settings.Seed * 486187739 + (tIndex + 1) * 16777619);
-                }
-                else
-                {
-                    peaksSeed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
-                }
-                peaks = MultiPeakSpecFactory.Create(peaksSeed, mapRadius, AppManager.Instance.Settings.PeakCount);
-            }
-
-            AppManager.Instance.Stimulus.GenerateMap(
-                mapType,
-                width,
-                length,
-                randomMapCenter,
-                goalOverride: null,
-                multiPeakSpecs: peaks
-            );
-
-            t = AppManager.Instance.Stimulus.GetTargetPosition();
-
-            safetyBreak++;
-        }
-        while (Vector2.Distance(s, t) < minStartDistance && safetyBreak < 100);
-
-        if (safetyBreak >= 100) Debug.LogWarning("Could not find valid start pos!");
-
-        outStartXZ = s;
-        outTargetXZ = t;
-    }
-
+    // ------------------------------------------------------------------------
+    // INPUT HELPERS
+    // ------------------------------------------------------------------------
 
     private bool GetSubmitInput()
     {
@@ -398,282 +408,96 @@ public class GradientNavigationSceneManager : MonoBehaviour
             return true;
 
         // VR
-        bool leftPressed = AppManager.Instance.LeftActivate.action != null &&
-                           AppManager.Instance.LeftActivate.action.WasPressedThisFrame();
-
-        bool rightPressed = AppManager.Instance.RightActivate.action != null &&
-                            AppManager.Instance.RightActivate.action.WasPressedThisFrame();
-
-        return leftPressed || rightPressed;
+        bool left = AppManager.Instance.LeftActivate.action != null && AppManager.Instance.LeftActivate.action.WasPressedThisFrame();
+        bool right = AppManager.Instance.RightActivate.action != null && AppManager.Instance.RightActivate.action.WasPressedThisFrame();
+        return left || right;
     }
 
     private bool GetPauseToggleInput()
     {
         if (!AppManager.Instance.Settings.EnablePause) return false;
 
-        // Valid states only
-        if (state != SessionDataManager.GameState.Trial && state != SessionDataManager.GameState.Paused) return false;
+        // Check if current state allows pausing
+        bool inTrial = state == SessionDataManager.GameState.Trial;
+        bool inPause = state == SessionDataManager.GameState.Paused;
+        bool inTraining = state == SessionDataManager.GameState.Training && allowTrainingPause;
+
+        if (!inTrial && !inPause && !inTraining) return false;
 
         // Desktop
-        if (!AppManager.Instance.Session.IsVRMode)
-            return Input.GetKeyDown(KeyCode.Space);
+        if (!AppManager.Instance.Session.IsVRMode) return Input.GetKeyDown(KeyCode.Space);
 
-        // VR
-        if (AppManager.Instance.LeftSelect.action != null &&
-            AppManager.Instance.LeftSelect.action.WasPressedThisFrame())
-        {
+        // VR (Left Select)
+        if (AppManager.Instance.LeftSelect.action != null && AppManager.Instance.LeftSelect.action.WasPressedThisFrame())
             return true;
-        }
 
         return false;
     }
 
     private bool GetRecenteringInput()
     {
-        return Input.GetKeyDown(KeyCode.R) || (AppManager.Instance.Session.IsVRMode && AppManager.Instance.RightSelect.action != null && AppManager.Instance.RightSelect.action.WasPressedThisFrame());
+        // R key or Right Select
+        return Input.GetKeyDown(KeyCode.R) ||
+               (AppManager.Instance.Session.IsVRMode &&
+                AppManager.Instance.RightSelect.action != null &&
+                AppManager.Instance.RightSelect.action.WasPressedThisFrame());
     }
 
-    private List<TrialSpec> LoadTrialsFromCsv(string csvPath)
+    // ------------------------------------------------------------------------
+    // TRAINING HELPERS
+    // ------------------------------------------------------------------------
+
+    private IEnumerator WaitForAnyTrigger()
     {
-        var lines = File.ReadAllLines(csvPath);
-        var trials = new List<TrialSpec>();
-
-        if (lines.Length == 0) return trials;
-
-        // Skip empty/comment lines at top until header
-        int headerLineIndex = -1;
-        for (int i = 0; i < lines.Length; i++)
-        {
-            var ln = lines[i].Trim();
-            if (string.IsNullOrWhiteSpace(ln)) continue;
-            if (ln.StartsWith("#")) continue;
-
-            headerLineIndex = i;
-            break;
-        }
-
-        if (headerLineIndex < 0) return trials;
-
-        var header = SplitCsvLine(lines[headerLineIndex])
-            .Select(h => h.Trim().Trim('"'))
-            .ToList();
-
-        int Col(string name)
-        {
-            return header.FindIndex(h => string.Equals(h, name, StringComparison.OrdinalIgnoreCase));
-        }
-
-        int cMapType = Col("MapType");
-        int cSpawnX = Col("SpawnX");
-        int cSpawnZ = Col("SpawnZ");
-        int cCenterX = Col("CenterX");
-        int cCenterZ = Col("CenterZ");
-        int cGoals = Col("Goals");
-        int cPeaks = Col("Peaks");
-
-        // Minimal required
-        if (cMapType < 0 || cSpawnX < 0 || cSpawnZ < 0)
-            throw new Exception("CSV missing required columns. Required: MapType, SpawnX, SpawnZ.");
-
-        for (int i = headerLineIndex + 1; i < lines.Length; i++)
-        {
-            string ln = lines[i].Trim();
-            if (string.IsNullOrWhiteSpace(ln)) continue;
-            if (ln.StartsWith("#")) continue;
-
-            var cells = SplitCsvLine(lines[i]);
-
-            string Get(int col)
-            {
-                if (col < 0) return "";
-                if (col >= cells.Count) return "";
-                return cells[col];
-            }
-
-            int mapType = ParseMapTypeIndex(Get(cMapType));
-
-            if (!TryParseFloat(Get(cSpawnX), out float sx) || !TryParseFloat(Get(cSpawnZ), out float sz))
-            {
-                Debug.LogWarning($"Skipping line {i + 1}: invalid spawn coords.");
-                continue;
-            }
-
-            float cx = 0f, cz = 0f;
-            if (TryParseFloat(Get(cCenterX), out float tmpX)) cx = tmpX;
-            if (TryParseFloat(Get(cCenterZ), out float tmpZ)) cz = tmpZ;
-
-            var goals = ParseVector2List(Get(cGoals));
-            Vector2? goalOverride = (goals.Count > 0) ? goals[0] : (Vector2?)null;
-
-            var peaks = ParsePeakList(Get(cPeaks));
-
-            // If Multi-Peak, peaks are required
-            if (mapType == 3 && (peaks == null || peaks.Count == 0))
-            {
-                Debug.LogWarning($"Skipping line {i + 1}: Multi-Peak requires Peaks.");
-                continue;
-            }
-
-            trials.Add(new TrialSpec
-            {
-                MapTypeIndex = mapType,
-                SpawnXZ = new Vector2(sx, sz),
-                CenterXZ = new Vector2(cx, cz),
-                GoalOverride = goalOverride,
-                ExtraGoals = (goals.Count > 1) ? goals.Skip(1).ToList() : new List<Vector2>(),
-                Peaks = peaks
-            });
-        }
-
-        return trials;
+        yield return new WaitForSeconds(0.5f); // Debounce
+        yield return new WaitUntil(() =>
+            (AppManager.Instance.LeftActivate.action != null && AppManager.Instance.LeftActivate.action.WasPressedThisFrame()) ||
+            (AppManager.Instance.RightActivate.action != null && AppManager.Instance.RightActivate.action.WasPressedThisFrame())
+        );
     }
 
-    private bool TryGetCsvPathFromSettings(out string csvPath)
+    private IEnumerator WaitForTriggerOrRightSelect()
     {
-        csvPath = null;
-
-        var setting = AppManager.Instance.Settings.SettingsList
-            .OfType<EnumSetting>()
-            .FirstOrDefault(s => s.Name == "Trial Source");
-
-        if (setting == null || setting.Options == null || setting.Options.Count == 0)
-            return false;
-
-        int idx = Mathf.Clamp(setting.SelectedIndex, 0, setting.Options.Count - 1);
-        string selected = setting.Options[idx];
-
-        if (string.IsNullOrWhiteSpace(selected))
-            return false;
-
-        // Expect: "[CSV_NAME] (CSV)"
-        if (!selected.EndsWith("(CSV)", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        string name = selected.Substring(0, selected.Length - "(CSV)".Length).Trim();
-        if (string.IsNullOrWhiteSpace(name))
-            return false;
-
-        csvPath = Path.Combine(AppManager.Instance.Settings.TrialsFolderPath, name + ".csv");
-        return true;
+        yield return new WaitForSeconds(0.5f); // Debounce
+        yield return new WaitUntil(() =>
+            (AppManager.Instance.LeftActivate.action != null && AppManager.Instance.LeftActivate.action.WasPressedThisFrame()) ||
+            (AppManager.Instance.RightActivate.action != null && AppManager.Instance.RightActivate.action.WasPressedThisFrame()) ||
+            (AppManager.Instance.RightSelect.action != null && AppManager.Instance.RightSelect.action.WasPressedThisFrame())
+        );
     }
 
-    private static List<string> SplitCsvLine(string line)
+    private Vector2 CalculateSafe3mPoint()
     {
-        // Minimal CSV splitter: supports quoted fields with commas.
-        var result = new List<string>();
-        if (line == null) return result;
+        Transform player = AppManager.Instance.Player.transform;
+        Vector3 origin = player.position;
+        float w = AppManager.Instance.Settings.MapWidth / 2f;
+        float l = AppManager.Instance.Settings.MapLength / 2f;
 
-        bool inQuotes = false;
-        var cur = new System.Text.StringBuilder();
+        Vector3[] directions = { player.forward, -player.forward, player.right, -player.right };
 
-        for (int i = 0; i < line.Length; i++)
+        foreach (var dir in directions)
         {
-            char c = line[i];
-
-            if (c == '"')
+            Vector3 target = origin + (dir * 3f);
+            if (target.x >= -w && target.x <= w && target.z >= -l && target.z <= l)
             {
-                // handle escaped quotes ""
-                if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
-                {
-                    cur.Append('"');
-                    i++;
-                }
-                else
-                {
-                    inQuotes = !inQuotes;
-                }
-            }
-            else if (c == ',' && !inQuotes)
-            {
-                result.Add(cur.ToString().Trim());
-                cur.Clear();
-            }
-            else
-            {
-                cur.Append(c);
+                return new Vector2(target.x, target.z);
             }
         }
-
-        result.Add(cur.ToString().Trim());
-        return result;
+        return Vector2.zero;
     }
 
-    private static bool TryParseFloat(string s, out float f)
+    private Vector2 GetClosestCornerInset(float inset)
     {
-        return float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out f);
+        Transform player = AppManager.Instance.Player.transform;
+        float w = AppManager.Instance.Settings.MapWidth / 2f;
+        float l = AppManager.Instance.Settings.MapLength / 2f;
+
+        float xSign = (player.position.x >= 0) ? 1 : -1;
+        float zSign = (player.position.z >= 0) ? 1 : -1;
+
+        float targetX = (w * xSign) - (inset * xSign);
+        float targetZ = (l * zSign) - (inset * zSign);
+
+        return new Vector2(targetX, targetZ);
     }
-
-    private static bool TryParseVector2Pair(string s, out Vector2 v)
-    {
-        v = Vector2.zero;
-        if (string.IsNullOrWhiteSpace(s)) return false;
-
-        // Allow formats like "x z" or "x,z" inside the cell
-        var cleaned = s.Replace(",", " ");
-        var parts = cleaned.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 2) return false;
-
-        if (!TryParseFloat(parts[0], out float x)) return false;
-        if (!TryParseFloat(parts[1], out float z)) return false;
-
-        v = new Vector2(x, z);
-        return true;
-    }
-
-    private static List<Vector2> ParseVector2List(string s)
-    {
-        var list = new List<Vector2>();
-        if (string.IsNullOrWhiteSpace(s)) return list;
-
-        // Strip outer quotes if any (SplitCsvLine already unquoted, but be safe)
-        s = s.Trim().Trim('"');
-
-        var items = s.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var item in items)
-        {
-            if (TryParseVector2Pair(item.Trim(), out var v))
-                list.Add(v);
-        }
-        return list;
-    }
-
-    private static List<PeakSpec> ParsePeakList(string s)
-    {
-        var list = new List<PeakSpec>();
-        if (string.IsNullOrWhiteSpace(s)) return list;
-
-        s = s.Trim().Trim('"');
-
-        var items = s.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var item in items)
-        {
-            var cleaned = item.Replace(",", " ").Trim();
-            var parts = cleaned.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length < 3) continue;
-
-            if (!TryParseFloat(parts[0], out float x)) continue;
-            if (!TryParseFloat(parts[1], out float z)) continue;
-            if (!TryParseFloat(parts[2], out float a)) continue;
-
-            list.Add(new PeakSpec(new Vector2(x, z), a));
-        }
-        return list;
-    }
-
-    private static int ParseMapTypeIndex(string s)
-    {
-        if (string.IsNullOrWhiteSpace(s))
-            return 0;
-
-        s = s.Trim().Trim('"');
-
-        // Allow numeric map type
-        if (int.TryParse(s, out int idx))
-            return Mathf.Clamp(idx, 0, StimulusManager.MapTypes.Count - 1);
-
-        // Name match
-        int found = StimulusManager.MapTypes.FindIndex(m => string.Equals(m, s, StringComparison.OrdinalIgnoreCase));
-        return (found >= 0) ? found : 0;
-    }
-
 }

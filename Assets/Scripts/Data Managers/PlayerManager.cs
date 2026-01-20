@@ -297,8 +297,20 @@ public class PlayerManager : MonoBehaviour
         if (activeUI.UIText != null && activeUI.UIText.gameObject.activeSelf)
         {
             int intensity255 = Mathf.RoundToInt(StimulusIntensity * 255f);
-            activeUI.UIText.text = $"Intensity: {StimulusIntensity:F3} ({intensity255})";
+            SetUIMessage($"Intensity: {StimulusIntensity:F3} ({intensity255})", Color.white, -1);
         }
+    }
+
+    public void ResizeTextWindow(Vector3 position, Vector2 size)
+    {
+        if (activeUI == null || activeUI.UIText == null)
+        {
+            Debug.LogWarning("UIText reference is missing.");
+            return;
+        }
+
+        activeUI.UIText.rectTransform.localPosition = position;
+        activeUI.UIText.rectTransform.sizeDelta = size;
     }
 
     public void SetUIMessage(string error, Color? color = null, float errorTimeSeconds = 5f)

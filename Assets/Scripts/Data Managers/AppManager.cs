@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// Hub and spoke data manager
 public class AppManager : MonoBehaviour
 {
     [SerializeField] private GameObject vrPlayerPrefab;
@@ -22,6 +21,7 @@ public class AppManager : MonoBehaviour
     public LogManager Logger { get; private set; }
     public OrientationManager Orientation { get; private set; }
     public StimulusManager Stimulus { get; private set; }
+    public TrialManager Trial { get; private set; }
 
     void Awake()
     {
@@ -32,9 +32,11 @@ public class AppManager : MonoBehaviour
         Settings = new SettingsManager();
         Session = new SessionDataManager();
         Logger = new LogManager();
+
         Player = gameObject.AddComponent<PlayerManager>();
         Orientation = gameObject.AddComponent<OrientationManager>();
         Stimulus = gameObject.AddComponent<StimulusManager>();
+        Trial = gameObject.AddComponent<TrialManager>();
 
         Player.Init(vrPlayerPrefab, desktopPlayerPrefab);
         Orientation.Init(lookObjectPrefab, walkObjectPrefab);

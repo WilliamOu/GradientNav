@@ -88,4 +88,41 @@ public class StimulusManager : MonoBehaviour
     {
         return activeGoalOverride ?? (currentMap != null ? currentMap.GetPrimaryTarget() : Vector2.zero);
     }
+
+    public static Vector2 ComputePrimaryTarget(
+    int typeIndex,
+    float mapWidth,
+    float mapLength,
+    Vector2 centerOffset,
+    IReadOnlyList<PeakSpec> multiPeakSpecs = null
+)
+    {
+        float mapRadius = Mathf.Min(mapWidth, mapLength) / 2f;
+        float sigmaScale = AppManager.Instance.Settings.SigmaScale;
+
+        IStimulusMap map;
+        switch (typeIndex)
+        {
+            case 0:
+                map = new GaussianMap(centerOffset, mapRadius, sigmaScale);
+                break;
+            case 1:
+                map = new LinearMap(centerOffset, mapRadius, sigmaScale);
+                break;
+            case 2:
+                map = new InverseMap(centerOffset, mapRadius, sigmaScale);
+                break;
+            case 3:
+                map = new MultiPeakMap(mapRadius, sigmaScale, multiPeakSpecs);
+                break;
+            case 4:
+                map = new TorusMap(centerOffset, mapRadius, sigmaScale);
+                break;
+            default:
+                map = new GaussianMap(centerOffset, mapRadius, sigmaScale);
+                break;
+        }
+
+        return map.GetPrimaryTarget();
+    }
 }

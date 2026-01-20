@@ -53,6 +53,7 @@ public class SettingsManager
 
     // Cached public values
     // TODO: Add max and minimum intensity settings, and closeness check value (how close the current color has to be to the actual max brightness value)
+    // TODO: Add a setting enabling or disabling VR movement via controller
     public float MouseSensitivity { get; private set; }
     public bool EnableMouseX { get; private set; }
     public bool EnableMouseY { get; private set; }
@@ -65,6 +66,7 @@ public class SettingsManager
     public int BufferSizeBeforeWrite { get; private set; }
     public bool EnablePause { get; private set; }
     public bool ReorientAfterPause { get; private set; }
+    public bool EnableTraining { get; private set; }
     public bool EnableSafetyWalls { get; private set; }
     public float SafetyWallRevealRadius { get; private set; }
     public float SafetyWallHandRevealRadius { get; private set; }
@@ -76,8 +78,6 @@ public class SettingsManager
     public int PeakCount { get; private set; }
     public int TrialSourceIndex { get; private set; }
     public int Seed { get; private set; }
-
-    // TODO: Add a setting enabling or disabling VR movement via controller
 
     public SettingsManager()
     {
@@ -191,6 +191,13 @@ public class SettingsManager
 
         SettingsList.Add(new BoolSetting
         {
+            Name = "Enable Training",
+            Description = "(VR Only) enable the training phase before the study to instruct the participant.",
+            Value = true,
+        });
+
+        SettingsList.Add(new BoolSetting
+        {
             Name = "Enable Safety Walls",
             Description = "(VR Only) Displays virtual walls when close to the map boundaries so the participant does not collide with a physical wall.",
             Value = true,
@@ -298,6 +305,7 @@ public class SettingsManager
         BufferSizeBeforeWrite = GetSetting<IntegerSetting>("Buffer Size Before Write")?.Value ?? LogManager.MinBufferSize;
         EnablePause = GetSetting<BoolSetting>("Enable Pause")?.Value ?? false;
         ReorientAfterPause = GetSetting<BoolSetting>("Reorient After Pause")?.Value ?? false;
+        EnableTraining = GetSetting<BoolSetting>("Enable Training")?.Value ?? true;
         EnableSafetyWalls = GetSetting<BoolSetting>("Enable Safety Walls")?.Value ?? true;
         SafetyWallRevealRadius = GetSetting<FloatSetting>("Safety Wall Reveal Radius")?.Value ?? 1.0f;
         SafetyWallHandRevealRadius = GetSetting<FloatSetting>("Safety Wall Hand Reveal Radius")?.Value ?? 0.6f;

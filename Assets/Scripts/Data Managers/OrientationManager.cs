@@ -25,7 +25,6 @@ public class OrientationManager : MonoBehaviour
 
     public IEnumerator WalkToLocation(float x, float z)
     {
-        AppManager.Instance.Player.EnableBlackscreen();
         AppManager.Instance.Player.SetUIMessage("Walk to the red waypoint", Color.white, -1);
 
         SpawnMarker(walkObjectPrefab, new Vector3(x, walkMarkerHeight, z));
@@ -36,12 +35,10 @@ public class OrientationManager : MonoBehaviour
 
         CleanupMarker();
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
-        AppManager.Instance.Player.DisableBlackscreen();
     }
 
     public IEnumerator LookAtLocation(float x, float z)
     {
-        AppManager.Instance.Player.EnableBlackscreen();
         AppManager.Instance.Player.SetUIMessage("Look at the red pillar", Color.white, -1);
 
         SpawnMarker(lookObjectPrefab, new Vector3(x, lookMarkerHeight, z));
@@ -51,7 +48,6 @@ public class OrientationManager : MonoBehaviour
 
         CleanupMarker();
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
-        AppManager.Instance.Player.DisableBlackscreen();
     }
 
     private void SpawnMarker(GameObject prefab, Vector3 position)

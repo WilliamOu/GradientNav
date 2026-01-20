@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using System.IO;
+using System.Collections.Generic;
 
 // Stores and manages settings that change with each session, such as participant information
 public class SessionDataManager
@@ -8,7 +9,7 @@ public class SessionDataManager
     public enum Gender { Unspecified, Male, Female, NonBinary, Other }
     public enum GameMode { Default }
     public enum SessionType { Desktop, VR }
-    public enum GameState { Idle, Orient, Paused, Trial }
+    public enum GameState { Training, Idle, Orient, Paused, Trial } // If this is changed change the GameStateString in the LogManager too
 
     public int TrialNumber = -1;
     public string MapType;
