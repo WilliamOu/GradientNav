@@ -2,6 +2,13 @@
 Patch History For GradientNav
 =============================
 
+(Minimum Viable Product)
+Version 1.0.0.0 - Jan 20, 2026
+- Added Shadow Mocap data logging system.
+- Added replay system. 
+- Disabled recentering during trials and moved recentering stage before training stage.
+- Organized scripts.
+
 Version 0.1.8.0 - Jan 19, 2026
 - Moved trial management and CSV functionality into the TrialManager.
 - Overhauled LogManager, significantly improving performance via reader/writer architecture.

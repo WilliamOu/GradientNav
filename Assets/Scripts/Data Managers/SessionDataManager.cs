@@ -84,13 +84,13 @@ public class SessionDataManager
         return participantFolder;
     }
 
-    public string GetCSVName()
+    public string GetFileName()
     {
         EnsureSessionStarted();
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
         // C# automatically converts Enum to string
-        return $"{participantId}_{currentGameMode.ToString()}_{timestamp}.csv";
+        return $"{participantId}_{currentGameMode.ToString()}_{timestamp}";
     }
 
     public bool IsVRMode => currentSession == SessionType.VR;

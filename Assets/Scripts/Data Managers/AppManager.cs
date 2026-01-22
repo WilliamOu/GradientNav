@@ -13,6 +13,9 @@ public class AppManager : MonoBehaviour
     public InputActionProperty LeftSelect;
     public InputActionProperty RightSelect;
 
+    public Material shadowDotMaterial;
+    public Material xriProxyMaterial;
+
     public static AppManager Instance { get; private set; }
 
     public SettingsManager Settings { get; private set; }
@@ -22,6 +25,8 @@ public class AppManager : MonoBehaviour
     public OrientationManager Orientation { get; private set; }
     public StimulusManager Stimulus { get; private set; }
     public TrialManager Trial { get; private set; }
+    public ShadowManager Shadow { get; private set; }
+    public ReplayManager Replay { get; private set; }
 
     void Awake()
     {
@@ -37,8 +42,11 @@ public class AppManager : MonoBehaviour
         Orientation = gameObject.AddComponent<OrientationManager>();
         Stimulus = gameObject.AddComponent<StimulusManager>();
         Trial = gameObject.AddComponent<TrialManager>();
+        Shadow = gameObject.AddComponent<ShadowManager>();
+        Replay = gameObject.AddComponent<ReplayManager>();
 
         Player.Init(vrPlayerPrefab, desktopPlayerPrefab);
         Orientation.Init(lookObjectPrefab, walkObjectPrefab);
+        Replay.Init(shadowDotMaterial, xriProxyMaterial);
     }
 }

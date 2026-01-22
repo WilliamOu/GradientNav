@@ -1,4 +1,5 @@
 using System.Collections;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -23,8 +24,9 @@ public class GradientNavigationSceneManager : MonoBehaviour
     // Pause Logic
     private Vector2 pausedReturnXZ; // Where the player was when they paused
 
-    // Training Flags
+    // State flags
     private bool allowTrainingPause = false;
+    private bool allowRecenter = true;
 
     // ------------------------------------------------------------------------
     // UNITY LIFECYCLE
@@ -46,8 +48,13 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     private void Update()
     {
+        long sw = System.Diagnostics.Stopwatch.GetTimestamp();
+        double t = Time.realtimeSinceStartupAsDouble;
+        LogManager.UpdateMainThreadTimeMapping(sw, t);
+
         // 1. Always update passive systems
         AppManager.Instance.Logger.ManualUpdate();
+        AppManager.Instance.Shadow.ManualUpdate();
         AppManager.Instance.Player.Minimap.ManualUpdate();
 
         // 2. Input: Pause / Unpause
@@ -100,14 +107,30 @@ public class GradientNavigationSceneManager : MonoBehaviour
     private IEnumerator RunAllTrials()
     {
         AppManager.Instance.Logger.BeginLogging();
-        // --- PHASE 1: TRAINING ---
-        if (AppManager.Instance.Settings.EnableTraining && AppManager.Instance.Session.IsVRMode)
+        AppManager.Instance.Shadow.BeginLogging();
+
+        // Global blackout
+        AppManager.Instance.Player.EnableBlackscreen();
+
+        // --- PHASE 0: RECENTER ---
+        if (AppManager.Instance.Session.IsVRMode)
         {
-            yield return RunTrainingPhase();
+            allowRecenter = true;
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
+            AppManager.Instance.Player.SetUIMessage("Recenter the room now if necessary.\n(Press the select button on your right controller, or press either trigger key to skip this step)", Color.white, -1);
+            yield return WaitForAnyTrigger();
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
+            allowRecenter = false;
         }
 
-        // --- PHASE 2: EXPERIMENT TRIALS ---
+        // --- PHASE 1: TRAINING ---
+        if (AppManager.Instance.Settings.EnableTraining && AppManager.Instance.Session.IsVRMode)
+            yield return RunTrainingPhase();
 
+        AppManager.Instance.Player.DisableBlackscreen();
+        // Global blackout end
+
+        // --- PHASE 2: EXPERIMENT TRIALS ---
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
 
         int totalTrials = AppManager.Instance.Trial.GetTotalTrialCount();
@@ -167,6 +190,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         // --- PHASE 3: FINISH ---
         SetState(SessionDataManager.GameState.Idle);
         AppManager.Instance.Logger.EndLogging();
+        AppManager.Instance.Shadow.EndLogging();
         SceneManager.LoadScene("Closing Scene");
     }
 
@@ -176,16 +200,15 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     private IEnumerator RunTrainingPhase()
     {
-        AppManager.Instance.Player.EnableBlackscreen();
         SetState(SessionDataManager.GameState.Training);
         Debug.Log("Starting VR Training Phase...");
 
         AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
-        // 1. Wait for Administrator
+        // Wait for Administrator
         AppManager.Instance.Player.SetUIMessage("[TRAINING]\nPlease wait as the study administrator provides an orientation.", Color.white, -1);
         yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.Return));
 
-        // 2. Brightness explanation
+        // Brightness explanation
         string msg = $"The brightness of the screen will change as you move around the scene." +
                      $"\n(Press either trigger key to continue)";
         AppManager.Instance.Player.SetUIMessage(msg, Color.white, -1);
@@ -201,23 +224,19 @@ public class GradientNavigationSceneManager : MonoBehaviour
         AppManager.Instance.Player.SetUIMessage(msg, Color.white, -1);
         yield return WaitForAnyTrigger();
 
-        // 3. Recenter
-        AppManager.Instance.Player.SetUIMessage("Recenter the room now if necessary.\n(Press the select button on your right controller, or press either trigger key to skip this step)", Color.white, -1);
-        yield return WaitForTriggerOrRightSelect();
-
-        // 4. Pillar Explanation
+        // Pillar Explanation
         AppManager.Instance.Player.SetUIMessage("At the beginning of each trial, you will be asked to walk to a location, as specified by a red pillar.\n(Press either trigger key to continue)", Color.white, -1);
         yield return WaitForAnyTrigger();
 
         AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
 
-        // 5. Orientation Trial (3m away)
+        // Orientation Trial (3m away)
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
         Vector2 target3m = CalculateSafe3mPoint();
         yield return WalkOrientTo(target3m, false);
         SetState(SessionDataManager.GameState.Training); // Restore state after orientation
 
-        // 6. Safety Walls
+        // Safety Walls
         if (AppManager.Instance.Settings.EnableSafetyWalls)
         {
             AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
@@ -233,7 +252,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
             AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
         }
 
-        // 7. Pause Training
+        // Pause Training
         if (AppManager.Instance.Settings.EnablePause)
         {
             AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
@@ -252,14 +271,13 @@ public class GradientNavigationSceneManager : MonoBehaviour
             SetState(SessionDataManager.GameState.Training);
         }
 
-        // 8. Ready
+        // Ready
         AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
         AppManager.Instance.Player.SetUIMessage("You are now ready to begin the study. You may proceed when ready.\n(Press either trigger key to continue)", Color.white, -1);
         yield return WaitForAnyTrigger();
         AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
 
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
-        AppManager.Instance.Player.DisableBlackscreen();
     }
 
     // ------------------------------------------------------------------------
@@ -436,6 +454,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     private bool GetRecenteringInput()
     {
+        if (!allowRecenter) return false;
+
         // R key or Right Select
         return Input.GetKeyDown(KeyCode.R) ||
                (AppManager.Instance.Session.IsVRMode &&

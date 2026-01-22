@@ -269,11 +269,19 @@ public class LogManager
     {
         if (isLogging) return;
 
-        string folder = AppManager.Instance.Session.GetParticipantFolderPath();
-        string fileName = AppManager.Instance.Session.GetCSVName();
-        fullFilePath = Path.Combine(folder, fileName);
+        string participantFolder =
+        AppManager.Instance.Session.GetParticipantFolderPath();
 
-        Directory.CreateDirectory(folder);
+        string sessionFolderName =
+            AppManager.Instance.Session.GetFileName();
+
+        string sessionFolderPath =
+            Path.Combine(participantFolder, sessionFolderName);
+
+        Directory.CreateDirectory(sessionFolderPath);
+
+        string fileName = sessionFolderName + "_XRI.csv";
+        fullFilePath = Path.Combine(sessionFolderPath, fileName);
 
         // Header adds FrameIndex + GlobalTime + StopwatchTicks
         // Note: SpawnXZ and GoalXZ are stored as a Vector2 which represents the pair as an x, y coordinate
