@@ -707,7 +707,7 @@ MonoBehaviour:
   shiftCameraPanSpeed: 16
   cameraPanSpeed: 6
   zoomSpeed: 2
-  minZoom: 10
+  minZoom: 3
   maxZoom: 100
   cameraAngle: 45
   zoomedFOV: 15

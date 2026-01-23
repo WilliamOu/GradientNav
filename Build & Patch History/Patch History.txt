@@ -2,6 +2,10 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.1.0 - Jan 23, 2026
+- Added tracker numbering to the shadow trackers in the replay system.
+- Added automatic rotation correction to solve rotation drift.
+
 (Minimum Viable Product)
 Version 1.0.0.0 - Jan 20, 2026
 - Added Shadow Mocap data logging system.

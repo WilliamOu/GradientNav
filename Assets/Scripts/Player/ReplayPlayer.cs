@@ -25,7 +25,7 @@ public class MapPlayer : MonoBehaviour
     [SerializeField] private float shiftCameraPanSpeed = 16f;
     [SerializeField] private float cameraPanSpeed = 6f;
     [SerializeField] private float zoomSpeed = 2f;
-    [SerializeField] private float minZoom = 5f;
+    [SerializeField] private float minZoom = 3f;
     [SerializeField] private float maxZoom = 400f;
     [SerializeField] private float cameraAngle = 45f;
     [SerializeField] private float zoomedFOV = 15f;
