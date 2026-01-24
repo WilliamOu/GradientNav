@@ -19,7 +19,7 @@ public class SessionDataManager
 
     // Getters enforce session start or will throw an exception
     // Getters can be found at the bottom of the script
-    private string participantName; // UNUSED
+    private string participantName;
     private string participantId;
     private Gender participantGender;
     private string date; // UNUSED
@@ -38,9 +38,9 @@ public class SessionDataManager
     }
 
     public void BeginSession(
+        string participantName,
         string participantId,
         Gender participantGender,
-        string date,
         GameMode currentGameMode,
         SessionType currentSession)
     {
@@ -50,9 +50,9 @@ public class SessionDataManager
             return;
         }
 
+        this.participantName = participantName;
         this.participantId = participantId;
         this.participantGender = participantGender;
-        this.date = date;
         this.currentGameMode = currentGameMode;
         this.currentSession = currentSession;
         this.sessionStartTime = Time.time;
@@ -73,7 +73,7 @@ public class SessionDataManager
         string root = Path.Combine(Application.persistentDataPath, "Participant Data Log CSVs");
 
         // 2. Participant ID folder
-        string participantFolder = Path.Combine(root, participantId);
+        string participantFolder = Path.Combine(root, participantName);
 
         // 3. Create if missing (Safe to call repeatedly)
         if (!Directory.Exists(participantFolder))

@@ -2,6 +2,10 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.1.1 - Jan 23, 2026
+- Replaced Date field with Participant Name in the Title Screen.
+- Mapped tracker numbers to limb in Replay Manager Script.
+
 Version 1.0.1.0 - Jan 23, 2026
 - Added tracker numbering to the shadow trackers in the replay system.
 - Added automatic rotation correction to solve rotation drift.

@@ -1477,7 +1477,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Gender
+  m_text: Participant ID
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -1504,8 +1504,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 24
-  m_fontSizeBase: 24
+  m_fontSize: 22
+  m_fontSizeBase: 22
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -1710,7 +1710,7 @@ GameObject:
   - component: {fileID: 381037089}
   - component: {fileID: 381037088}
   m_Layer: 5
-  m_Name: Date
+  m_Name: Gender
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2057,9 +2057,9 @@ MonoBehaviour:
   SettingsMenu: {fileID: 764331549}
   MainMenuErrorMessageTextField: {fileID: 95231003}
   SettingsMenuErrorMessageTextField: {fileID: 152440559}
-  Participant: {fileID: 1718278228}
-  Gender: {fileID: 2005055474}
-  Date: {fileID: 381037088}
+  ParticipantName: {fileID: 1718278228}
+  ParticipantID: {fileID: 2005055474}
+  Gender: {fileID: 381037088}
   FileLocationButton: {fileID: 1674562875}
   SettingsButton: {fileID: 1109255980}
   SaveButton: {fileID: 2124045358}
@@ -4220,7 +4220,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: MM/DD/YYYY
+  m_text: Gender
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -4247,8 +4247,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 24
-  m_fontSizeBase: 24
+  m_fontSize: 22
+  m_fontSizeBase: 22
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -5399,7 +5399,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Participant ID
+  m_text: Participant Name
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -5426,8 +5426,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 24
-  m_fontSizeBase: 24
+  m_fontSize: 22
+  m_fontSizeBase: 22
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -6820,7 +6820,7 @@ MonoBehaviour:
       m_SingletonActionBindings: []
       m_Flags: 0
     m_Reference: {fileID: -1758520528963094988, guid: c348712bda248c246b8c49b3db54643f, type: 3}
-  shadowDotMaterial: {fileID: 2100000, guid: 4b0f1ef2afb53094dab306ee1c161d4e, type: 2}
+  shadowDotMaterial: {fileID: 2100000, guid: 9d8e44e34186f9444953ad29f229ec88, type: 2}
   xriProxyMaterial: {fileID: 2100000, guid: f6c3329dbc4de0f4b9f6a54d20264c36, type: 2}
 --- !u!1 &1568712932
 GameObject:
@@ -8021,7 +8021,7 @@ GameObject:
   - component: {fileID: 1718278229}
   - component: {fileID: 1718278228}
   m_Layer: 5
-  m_Name: Participant
+  m_Name: Participant Name
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -8674,7 +8674,7 @@ GameObject:
   - component: {fileID: 2005055475}
   - component: {fileID: 2005055474}
   m_Layer: 5
-  m_Name: Gender
+  m_Name: Participant ID
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

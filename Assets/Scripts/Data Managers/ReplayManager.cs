@@ -3,6 +3,26 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
+/*
+Limbs:
+Chest: 0
+Head: 1
+Pelvis: 2
+Right Shoulder/Upper Arm: 3
+Right Foot: 4
+Right Elbow: 5
+Right Hand: 6
+Right Knee: 7
+Right Collarbone: 8
+Right Upper Leg: 9
+Left Shoulder/Upper Arm: 10
+Left Foot: 11
+Left Elbow: 12
+Left Hand: 13
+Left Knee: 14
+Left Collarbone: 15
+Left Upper Leg: 16
+*/
 public class ReplayManager : MonoBehaviour
 {
     // --- Constants ---

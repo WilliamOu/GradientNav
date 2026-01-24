@@ -28,9 +28,9 @@ public class TitleSceneManager : MonoBehaviour
     private MenuState menuState;
 
     // Main Menu Elements
-    [SerializeField] private TMP_InputField Participant;
+    [SerializeField] private TMP_InputField ParticipantName;
+    [SerializeField] private TMP_InputField ParticipantID;
     [SerializeField] private TMP_InputField Gender;
-    [SerializeField] private TMP_InputField Date;
     [SerializeField] private UnityEngine.UI.Button FileLocationButton;
     [SerializeField] private UnityEngine.UI.Button SettingsButton;
 
@@ -158,16 +158,16 @@ public class TitleSceneManager : MonoBehaviour
             return;
         }
 
-        if (!TryParseDateMMDDYYYY(Date.text, out var normalizedDate))
+        /*if (!TryParseDateMMDDYYYY(Date.text, out var normalizedDate))
         {
             WriteMessage("Please enter a valid date in MM/DD/YYYY format (example: 12/31/2025).");
             return;
-        }
+        }*/
 
         AppManager.Instance.Session.BeginSession(
-            Participant.text,
+            ParticipantName.text,
+            ParticipantID.text,
             parsedGender,
-            normalizedDate,
             gameMode,
             sessionType
         );
