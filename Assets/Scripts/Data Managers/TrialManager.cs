@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 
-// Data container for a specific trial
 public class TrialSpec
 {
     public int MapTypeIndex;
@@ -14,6 +13,7 @@ public class TrialSpec
     public Vector2? GoalOverride;
     public List<Vector2> ExtraGoals = new();
     public List<PeakSpec> Peaks;
+    public float? SigmaOverride;
 }
 
 public enum TrialPlanMode
@@ -221,6 +221,7 @@ public class TrialManager : MonoBehaviour
         int cCenterZ = Col("CenterZ");
         int cGoals = Col("Goals");
         int cPeaks = Col("Peaks");
+        int cSigma = Col("Sigma");
 
         if (cMapType < 0 || cSpawnX < 0 || cSpawnZ < 0)
             throw new Exception("CSV missing required columns.");
@@ -250,6 +251,12 @@ public class TrialManager : MonoBehaviour
                 Debug.LogWarning($"Skipping line {i + 1}: Multi-Peak requires Peaks.");
                 continue;
             }
+            
+            float? sigmaOverride = null;
+            if (cSigma >= 0 && TryParseFloat(Get(cSigma), out float sVal))
+            {
+                sigmaOverride = sVal;
+            }
 
             trials.Add(new TrialSpec
             {
@@ -258,7 +265,8 @@ public class TrialManager : MonoBehaviour
                 CenterXZ = new Vector2(cx, cz),
                 GoalOverride = goalOverride,
                 ExtraGoals = (goals.Count > 1) ? goals.Skip(1).ToList() : new List<Vector2>(),
-                Peaks = peaks
+                Peaks = peaks,
+                SigmaOverride = sigmaOverride // NEW: Assign the value
             });
         }
         return trials;

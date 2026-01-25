@@ -61,6 +61,12 @@ public class PlayerManager : MonoBehaviour
 
             leftHandDevice = default(InputDevice);
             rightHandDevice = default(InputDevice);
+
+            if (!AppManager.Instance.Settings.EnableControllerMovement)
+            {
+                activeUI.CController.enabled = false;
+                activeUI.ContinuousMoveProvider.enabled = false;
+            }
         }
 
         Minimap = newPlayer.GetComponentInChildren<MinimapRenderer>(true);

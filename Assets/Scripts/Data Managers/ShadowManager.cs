@@ -123,8 +123,8 @@ public sealed class ShadowManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            status = $"Start failed: {e.Message}";
-            Debug.LogError($"[ShadowManager] {status}");
+            status = $"Start failed (ignore if the shadow system is not connected): {e.Message}";
+            Debug.Log($"[ShadowManager] {status}");
             SafeStopInternal();
         }
     }

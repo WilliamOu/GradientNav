@@ -17,7 +17,7 @@ public class LogManager
 {
     public const int MinBufferSize = 1000;
     public const int MaxBufferSize = 30000;
-    private readonly string[] stateNames;
+    public string[] stateNames;
 
     public static readonly long StopwatchFrequency = Stopwatch.Frequency;
 

@@ -2,6 +2,13 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.2.0 - Jan 24, 2026
+- Added a setting to disable controller movement on the VR player.
+- Fixed UI scaling issues.
+- Adjusted CSV map generation to take an optional sigma parameter.
+- Gradient Scene now logs trigger presses.
+- Adjusted default settings to better reflect intended trial conditions.
+
 Version 1.0.1.1 - Jan 23, 2026
 - Replaced Date field with Participant Name in the Title Screen.
 - Mapped tracker numbers to limb in Replay Manager Script.

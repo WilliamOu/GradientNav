@@ -148,7 +148,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
                 AppManager.Instance.Settings.MapLength,
                 spec.CenterXZ,
                 goalOverride: spec.GoalOverride,
-                multiPeakSpecs: spec.Peaks
+                multiPeakSpecs: spec.Peaks,
+                sigmaOverride: spec.SigmaOverride
             );
 
             // C. Setup Session Data
@@ -316,6 +317,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         }
 
         AppManager.Instance.Player.SetUIMessage("Try again!", Color.magenta, 4);
+        AppManager.Instance.Logger.LogEvent($"TRIGGER_PRESS");
     }
 
     private void EndTrial()

@@ -67,6 +67,7 @@ public class SettingsManager
     public bool EnablePause { get; private set; }
     public bool ReorientAfterPause { get; private set; }
     public bool EnableTraining { get; private set; }
+    public bool EnableControllerMovement { get; private set; }
     public bool EnableSafetyWalls { get; private set; }
     public float SafetyWallRevealRadius { get; private set; }
     public float SafetyWallHandRevealRadius { get; private set; }
@@ -125,7 +126,7 @@ public class SettingsManager
         {
             Name = "Map Length",
             Description = "Specified in meters. It is recommended to use a square play space.",
-            Value = 10f,
+            Value = 8f,
             Min = 0f,
             Max = 9999f, // I'm going to assume nobody has a 9999x9999 meter testing space
         });
@@ -134,7 +135,7 @@ public class SettingsManager
         {
             Name = "Map Width",
             Description = "Specified in meters. It is recommended to use a square play space.",
-            Value = 10f,
+            Value = 8f,
             Min = 0f,
             Max = 9999f, // I'm going to assume nobody has a 9999x9999 meter testing space
         });
@@ -143,7 +144,7 @@ public class SettingsManager
         {
             Name = "Time To Seek",
             Description = "The time (in seconds) allocated to the participant to find the brightest point.",
-            Value = 30f,
+            Value = 180.0f,
             Min = 0f,
             Max = 9999f,
         });
@@ -194,6 +195,13 @@ public class SettingsManager
             Name = "Enable Training",
             Description = "(VR Only) enable the training phase before the study to instruct the participant.",
             Value = true,
+        });
+
+        SettingsList.Add(new BoolSetting
+        {
+            Name = "Enable Controller Movement",
+            Description = "(VR Only) Enables movement using the left hand joystick.",
+            Value = false,
         });
 
         SettingsList.Add(new BoolSetting
@@ -250,7 +258,7 @@ public class SettingsManager
         {
             Name = "Sigma Scale",
             Description = "Sigma scaling parameter. Calculated as Min(Map Width, Map Length)/[scale parameter].",
-            Value = 2f,
+            Value = 1.0f,
             Min = 0.0001f,
             Max = 9999f,
         });
@@ -297,22 +305,23 @@ public class SettingsManager
         EnableMouseX = GetSetting<BoolSetting>("Enable Mouse X")?.Value ?? true;
         EnableMouseY = GetSetting<BoolSetting>("Enable Mouse Y")?.Value ?? false;
         MoveSpeed = GetSetting<FloatSetting>("Move Speed")?.Value ?? 2.0f;
-        MapLength = GetSetting<FloatSetting>("Map Length")?.Value ?? 10.0f;
-        MapWidth = GetSetting<FloatSetting>("Map Width")?.Value ?? 10.0f;
-        TimeToSeek = GetSetting<FloatSetting>("Time To Seek")?.Value ?? 30.0f;
+        MapLength = GetSetting<FloatSetting>("Map Length")?.Value ?? 8.0f;
+        MapWidth = GetSetting<FloatSetting>("Map Width")?.Value ?? 8.0f;
+        TimeToSeek = GetSetting<FloatSetting>("Time To Seek")?.Value ?? 180.0f;
         SuccessThreshold = GetSetting<FloatSetting>("Success Threshold")?.Value ?? 0.9f;
         DataLogInterval = GetSetting<FloatSetting>("Data Log Interval")?.Value ?? 0.011f;
         BufferSizeBeforeWrite = GetSetting<IntegerSetting>("Buffer Size Before Write")?.Value ?? LogManager.MinBufferSize;
         EnablePause = GetSetting<BoolSetting>("Enable Pause")?.Value ?? false;
         ReorientAfterPause = GetSetting<BoolSetting>("Reorient After Pause")?.Value ?? false;
         EnableTraining = GetSetting<BoolSetting>("Enable Training")?.Value ?? true;
+        EnableControllerMovement = GetSetting<BoolSetting>("Enable Controller Movement")?.Value ?? false;
         EnableSafetyWalls = GetSetting<BoolSetting>("Enable Safety Walls")?.Value ?? true;
         SafetyWallRevealRadius = GetSetting<FloatSetting>("Safety Wall Reveal Radius")?.Value ?? 1.0f;
         SafetyWallHandRevealRadius = GetSetting<FloatSetting>("Safety Wall Hand Reveal Radius")?.Value ?? 0.6f;
         ExperimentalMode = GetSetting<BoolSetting>("Experimental Mode")?.Value ?? false;
         ParticipantMaxTestCount = GetSetting<IntegerSetting>("Participant Max Test Count")?.Value ?? 1;
         TrialCount = GetSetting<IntegerSetting>("Trial Count")?.Value ?? 3;
-        SigmaScale = GetSetting<FloatSetting>("Sigma Scale")?.Value ?? 2.0f;
+        SigmaScale = GetSetting<FloatSetting>("Sigma Scale")?.Value ?? 1.0f;
         MapTypeIndex = GetSetting<EnumSetting>("Map Type")?.SelectedIndex ?? 0;
         PeakCount = GetSetting<IntegerSetting>("Peak Count")?.Value ?? 3;
         TrialSourceIndex = GetSetting<EnumSetting>("Trial Source")?.SelectedIndex ?? 0;

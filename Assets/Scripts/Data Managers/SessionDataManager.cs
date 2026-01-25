@@ -12,7 +12,7 @@ public class SessionDataManager
     public enum GameState { Training, Idle, Orient, Paused, Trial } // If this is changed change the GameStateString in the LogManager too
 
     public int TrialNumber = -1;
-    public string MapType;
+    public string MapType = "No Map";
     public Vector2 SpawnPosition = Vector2.zero;
     public Vector2 GoalPosition = Vector2.zero;
     public GameState State = GameState.Idle;
