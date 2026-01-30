@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.2.1 - Jan 30, 2026
+- Added an Examples folder containing an example csv trial.
+
 Version 1.0.2.0 - Jan 24, 2026
 - Added a setting to disable controller movement on the VR player.
 - Fixed UI scaling issues.
