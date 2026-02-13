@@ -126,19 +126,19 @@ public class MultiPeakMap : IStimulusMap
 
     public float Evaluate(Vector2 pos)
     {
-        float maxIntensity = 0f;
+        float totalIntensity = 0f;
 
         for (int i = 0; i < peaks.Count; i++)
         {
             var peak = peaks[i];
             float dist = Vector2.Distance(pos, peak.Position);
-            float gauss = Mathf.Exp(-(dist * dist) / (2f * sigma * sigma));
-            float finalVal = gauss * Mathf.Clamp01(peak.Amplitude);
 
-            if (finalVal > maxIntensity) maxIntensity = finalVal;
+            float gauss = Mathf.Exp(-(dist * dist) / (2f * sigma * sigma));
+
+            totalIntensity += gauss * peak.Amplitude;
         }
 
-        return maxIntensity;
+        return totalIntensity;
     }
 
     public Vector2 GetPrimaryTarget() => brightestPeakPos;

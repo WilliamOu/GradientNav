@@ -1,0 +1,173 @@
+using UnityEngine;
+
+public class Map3DVisualizer : MonoBehaviour
+{
+    [Header("Visualization Config")]
+    [Tooltip("How many vertices along the longest axis. Higher = smoother but heavier.")]
+    [SerializeField] private int meshResolution = 150;
+    [SerializeField] private float heightMultiplier = 4.0f;
+
+    [Header("Appearance")]
+    [Tooltip("Material MUST support Vertex Colors (e.g., Particles/Standard Surface).")]
+    [SerializeField] private Material meshMaterial;
+    [SerializeField] private Gradient heatGradient;
+
+    private GameObject _visualizationObj;
+    private MeshFilter _meshFilter;
+    private MeshRenderer _meshRenderer;
+    private Mesh _mesh;
+
+    // Call this from your Game Manager or UI button
+    public void ToggleMap(bool state)
+    {
+        Debug.Log("GenerateMesh called");
+        if (state)
+        {
+            // If we haven't built the mesh yet (or it was destroyed), build it
+            if (_visualizationObj == null)
+            {
+                GenerateMesh();
+            }
+
+            // If we already have it, just ensure it's on and updated
+            _visualizationObj.SetActive(true);
+            UpdateMeshGeometry(); // Optional: Refresh in case map params changed while hidden
+        }
+        else
+        {
+            if (_visualizationObj != null)
+            {
+                _visualizationObj.SetActive(false);
+            }
+        }
+    }
+
+    private void GenerateMesh()
+    {
+        // 1. Create the GameObject that holds the mesh
+        _visualizationObj = new GameObject("Generated_Stimulus_Mesh");
+        _visualizationObj.transform.SetParent(this.transform, false);
+
+        // 2. Add components
+        _meshFilter = _visualizationObj.AddComponent<MeshFilter>();
+        _meshRenderer = _visualizationObj.AddComponent<MeshRenderer>();
+
+        // 3. Assign Material (Critical for seeing colors)
+        if (meshMaterial != null)
+            _meshRenderer.material = meshMaterial;
+        else
+            // Fallback to a default that usually supports vertex colors
+            _meshRenderer.material = new Material(Shader.Find("Particles/Standard Surface"));
+
+        // 4. initialize mesh
+        _mesh = new Mesh();
+        _mesh.name = "StimulusHeightMap";
+        // utilizing 32-bit index buffer allows for meshes > 65k vertices
+        _mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+
+        _meshFilter.mesh = _mesh;
+
+        // 5. Build the geometry
+        UpdateMeshGeometry();
+    }
+
+    public void UpdateMeshGeometry()
+    {
+        if (_mesh == null) return;
+
+        // --- A. Gather Settings ---
+        float mapWidth = AppManager.Instance.Settings.MapWidth;
+        float mapLength = AppManager.Instance.Settings.MapLength;
+
+        // Determine step size to keep quads square-ish
+        // We use the same resolution for the longest side
+        float aspectRatio = mapWidth / mapLength;
+
+        int xRes, zRes;
+        if (mapWidth >= mapLength)
+        {
+            xRes = meshResolution;
+            zRes = Mathf.RoundToInt(meshResolution / aspectRatio);
+        }
+        else
+        {
+            zRes = meshResolution;
+            xRes = Mathf.RoundToInt(meshResolution * aspectRatio);
+        }
+
+        // --- B. Generate Vertices & Colors ---
+        Vector3[] vertices = new Vector3[(xRes + 1) * (zRes + 1)];
+        Color[] colors = new Color[vertices.Length];
+        Vector2[] uvs = new Vector2[vertices.Length];
+
+        float halfWidth = mapWidth / 2f;
+        float halfLength = mapLength / 2f;
+
+        for (int z = 0; z <= zRes; z++)
+        {
+            for (int x = 0; x <= xRes; x++)
+            {
+                int i = z * (xRes + 1) + x;
+
+                // Normalized coordinates (0 to 1)
+                float u = x / (float)xRes;
+                float v = z / (float)zRes;
+
+                // World position (Centered at 0,0 like your Minimap)
+                float worldX = Mathf.Lerp(-halfWidth, halfWidth, u);
+                float worldZ = Mathf.Lerp(-halfLength, halfLength, v);
+
+                // Query the Stimulus Manager
+                // Note: GetIntensity usually takes Vector3 worldPos
+                float intensity = AppManager.Instance.Stimulus.GetIntensity(new Vector3(worldX, 0, worldZ));
+
+                // Apply Height
+                float yPos = intensity * heightMultiplier;
+
+                vertices[i] = new Vector3(worldX, yPos, worldZ);
+                colors[i] = heatGradient.Evaluate(intensity);
+                uvs[i] = new Vector2(u, v);
+            }
+        }
+
+        // --- C. Generate Triangles ---
+        int[] triangles = new int[xRes * zRes * 6];
+        int triIndex = 0;
+
+        for (int z = 0; z < zRes; z++)
+        {
+            for (int x = 0; x < xRes; x++)
+            {
+                int i = z * (xRes + 1) + x;
+
+                // Quad vertex indices
+                int bl = i;
+                int br = i + 1;
+                int tl = i + (xRes + 1);
+                int tr = i + (xRes + 1) + 1;
+
+                // First triangle
+                triangles[triIndex] = bl;
+                triangles[triIndex + 1] = tl;
+                triangles[triIndex + 2] = br;
+
+                // Second triangle
+                triangles[triIndex + 3] = br;
+                triangles[triIndex + 4] = tl;
+                triangles[triIndex + 5] = tr;
+
+                triIndex += 6;
+            }
+        }
+
+        // --- D. Apply to Mesh ---
+        _mesh.Clear();
+        _mesh.vertices = vertices;
+        _mesh.colors = colors;
+        _mesh.uv = uvs;
+        _mesh.triangles = triangles;
+
+        _mesh.RecalculateNormals();
+        _mesh.RecalculateBounds();
+    }
+}

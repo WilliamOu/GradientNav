@@ -2,6 +2,10 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.2.2 - Feb 13, 2026
+- Added an experimental map visualization plane.
+- Adjusted player prefabs and three perspective camera.
+
 Version 1.0.2.1 - Jan 30, 2026
 - Added an Examples folder containing an example csv trial.
 

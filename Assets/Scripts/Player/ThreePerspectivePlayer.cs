@@ -1,35 +1,41 @@
+using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class MapPlayer : MonoBehaviour
+public class ThreePerspectivePlayer : MonoBehaviour
 {
     public enum Mode { Isometric, TopDown, FirstPerson }
+
     public Mode CurrentMode = Mode.Isometric;
     public Mode LastBirdsEyeViewMode = Mode.Isometric;
     public bool IsZoomed;
+    public bool IsFrozen = false; // New Freeze State
 
-    [Header("References")]
+    // Subscribe to these in your UI/Study Manager scripts
+    public event Action<bool> OnFreezeStateChanged;
+    public event Action<Mode> OnViewModeChanged;
+
     [SerializeField] private CharacterController controller;
     [SerializeField] private Transform cameraTransform;
+    [SerializeField] private bool UseEdgeScrolling = true;
 
-    [Header("Physics & Movement")]
-    [SerializeField] private float forceOfGravity = -19.62f;
-    [SerializeField] private float jumpForce = 7f;
-    [SerializeField] private float shiftSpeed = 12f;
-    [SerializeField] private float speed = 4f;
-    float mouseSensitivity = 2f;
-    float cameraPitch = 0f;
+    private float forceOfGravity = -19.62f;
+    private float jumpForce = 7f;
+    private float shiftSpeed = 12f;
+    private float speed = 4f;
+    private float mouseSensitivity = 2f;
 
-    [Header("Camera Settings")]
-    [SerializeField] private float shiftCameraPanSpeed = 16f;
-    [SerializeField] private float cameraPanSpeed = 6f;
-    [SerializeField] private float zoomSpeed = 2f;
-    [SerializeField] private float minZoom = 3f;
-    [SerializeField] private float maxZoom = 400f;
-    [SerializeField] private float cameraAngle = 45f;
-    [SerializeField] private float zoomedFOV = 15f;
-    [SerializeField] private float defaultFOV = 60f;
+    // Camera Settings
+    private float cameraPitch = 0f;
+    private float shiftCameraPanSpeed = 6f;
+    // private float ctrlCameraPanSpeed = 2f;
+    private float cameraPanSpeed = 4f;
+    private float zoomSpeed = 4f;
+    private float minZoom = 3f;
+    private float maxZoom = 400f;
+    private float cameraAngle = 45f;
+    private float zoomedFOV = 15f;
+    private float defaultFOV = 60f;
 
     // Internal State
     private float verticalVelocity = 0f;
@@ -39,7 +45,6 @@ public class MapPlayer : MonoBehaviour
 
     private Vector3 birdEyeViewPosition;
     private Quaternion birdEyeViewRotation;
-
     private Coroutine rotateCoroutine;
 
     // Saved state for switching views
@@ -62,11 +67,22 @@ public class MapPlayer : MonoBehaviour
         {
             mapCamera.transform.rotation = birdEyeViewRotation;
         }
-        mouseSensitivity = AppManager.Instance.Settings.MouseSensitivity;
+
+        // Safety check if AppManager is missing in a new scene
+        // mouseSensitivity = AppManager.Instance?.Settings.MouseSensitivity ?? 2f; 
+
+        // Initial Event Fire
+        OnViewModeChanged?.Invoke(CurrentMode);
     }
 
     void Update()
     {
+        // 1. Handle Freeze Input (Menu Toggle)
+        HandleFreezeInput();
+
+        // 2. If Frozen, stop processing movement logic
+        if (IsFrozen) return;
+
         if (hasJumped > 0f) { hasJumped -= Time.deltaTime; }
 
         HandleMovement();
@@ -75,13 +91,53 @@ public class MapPlayer : MonoBehaviour
         HandleMouseLook();
     }
 
+    private void HandleFreezeInput()
+    {
+        // Only allow freezing in Bird's Eye/Isometric as requested
+        if (CurrentMode == Mode.FirstPerson) return;
+
+        if (Input.GetKeyDown(KeyCode.LeftAlt) || Input.GetKeyDown(KeyCode.RightAlt))
+        {
+            ToggleFreezeState(!IsFrozen);
+        }
+    }
+
+    public void ToggleFreezeState(bool freeze)
+    {
+        IsFrozen = freeze;
+
+        if (IsFrozen)
+        {
+            // Unlock cursor for Menu interaction
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+        else
+        {
+            // Restore cursor state based on mode
+            if (CurrentMode == Mode.FirstPerson)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
+            else
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+        }
+
+        // Fire Event for external Listeners (UI, Data Loggers, etc)
+        OnFreezeStateChanged?.Invoke(IsFrozen);
+    }
+
     private void HandleMovement()
     {
         float xDirection = Input.GetAxis("Horizontal");
         float zDirection = Input.GetAxis("Vertical");
 
-        // Edge scrolling logic (Only in BirdsEye views)
-        /*if (xDirection == 0f && zDirection == 0f && CurrentMode != Mode.FirstPerson)
+        // Edge scrolling logic
+        if (UseEdgeScrolling && xDirection == 0f && zDirection == 0f && CurrentMode != Mode.FirstPerson)
         {
             float mouseX = Input.mousePosition.x;
             float mouseY = Input.mousePosition.y;
@@ -93,7 +149,7 @@ public class MapPlayer : MonoBehaviour
 
             if (mouseY <= 0f) zDirection = -0.5f;
             else if (mouseY >= screenHeight - 1f) zDirection = 0.5f;
-        }*/
+        }
 
         Vector3 move = transform.right * xDirection + transform.forward * zDirection;
 
@@ -105,7 +161,7 @@ public class MapPlayer : MonoBehaviour
         if (CurrentMode != Mode.FirstPerson)
         {
             BirdsEyeViewSpecificMovement();
-            move *= 4f; // Birds eye view is generally faster
+            move *= 4f;
         }
         else
         {
@@ -129,7 +185,6 @@ public class MapPlayer : MonoBehaviour
         cameraPitch = Mathf.Clamp(cameraPitch, -89f, 89f);
 
         cameraTransform.localRotation = Quaternion.Euler(cameraPitch, 0f, 0f);
-
         transform.Rotate(Vector3.up * mouseX);
     }
 
@@ -167,11 +222,6 @@ public class MapPlayer : MonoBehaviour
         }
     }
 
-    private void CenterCamera()
-    {
-        transform.position = birdEyeViewPosition;
-    }
-
     private void SwitchBetweenEditAndBirdsEyeViewModes()
     {
         if (CurrentMode == Mode.FirstPerson)
@@ -182,6 +232,9 @@ public class MapPlayer : MonoBehaviour
         {
             SwitchToFirstPersonView();
         }
+
+        // Notify listeners
+        OnViewModeChanged?.Invoke(CurrentMode);
     }
 
     private void SwitchToBirdsEyeView()
@@ -212,9 +265,7 @@ public class MapPlayer : MonoBehaviour
         lastCameraRotation = mapCamera.transform.rotation;
 
         float currentTilt = mapCamera.transform.localEulerAngles.x;
-
         if (currentTilt > 180f) currentTilt -= 360f;
-
         cameraPitch = currentTilt;
 
         // Apply camera offset
@@ -235,7 +286,6 @@ public class MapPlayer : MonoBehaviour
         {
             if (hasJumped > 0f)
             {
-                // Double tap space to toggle flight
                 isFlying = !isFlying;
                 hasJumped = 0f;
                 verticalVelocity = 0;
@@ -248,9 +298,7 @@ public class MapPlayer : MonoBehaviour
 
         if (!isFlying)
         {
-            // Standard Physics
             ApplyGravity();
-
             if (Input.GetKey(KeyCode.Space) && controller.isGrounded)
             {
                 verticalVelocity = jumpForce;
@@ -258,7 +306,6 @@ public class MapPlayer : MonoBehaviour
         }
         else
         {
-            // Flying Physics
             if (Input.GetKey(KeyCode.Space)) { verticalVelocity = speed; }
             else if (Input.GetKey(KeyCode.LeftControl)) { verticalVelocity = -speed; }
             else { verticalVelocity = 0; }
@@ -269,23 +316,26 @@ public class MapPlayer : MonoBehaviour
     {
         controller.enabled = false;
 
-        // Zoom in and out with scroll wheel
         float scrollInput = Input.GetAxis("Mouse ScrollWheel");
-        float currentZoomSpeed = Input.GetKey(KeyCode.LeftShift) ? zoomSpeed * shiftCameraPanSpeed : zoomSpeed * cameraPanSpeed;
+        float currentZoomSpeed;
+        if (Input.GetKey(KeyCode.LeftShift))
+        {
+            currentZoomSpeed = zoomSpeed * shiftCameraPanSpeed;
+        }
+        else
+        {
+            currentZoomSpeed = zoomSpeed * cameraPanSpeed;
+        }
 
         if (CurrentMode == Mode.TopDown)
         {
-            // Top-down: Scroll modifies Y height directly
             float newCameraHeight = Mathf.Clamp(transform.position.y - scrollInput * currentZoomSpeed, minZoom, maxZoom);
             transform.position = new Vector3(transform.position.x, newCameraHeight, transform.position.z);
         }
         else
         {
-            // Isometric: Scroll modifies distance from focal point
             Vector3 cameraPosition = mapCamera.transform.position;
             Vector3 cameraForward = mapCamera.transform.forward;
-
-            // Calculate the focal point (intersection with ground plane y=0 roughly)
             float distance = cameraForward.y == 0 ? 0.0001f : cameraPosition.y / -cameraForward.y;
             Vector3 focalPoint = cameraPosition + cameraForward * distance;
 
@@ -313,26 +363,24 @@ public class MapPlayer : MonoBehaviour
             CurrentMode = Mode.Isometric;
             StartCoroutine(LerpBetweenBirdsEyeViews(0.2f, 45f));
         }
+        OnViewModeChanged?.Invoke(CurrentMode);
     }
 
-    // --- Coroutines & Math Helpers ---
+    // --- Coroutines & Helpers (Unchanged Logic, just formatting) ---
+    private void CenterCamera() { transform.position = birdEyeViewPosition; }
 
     private IEnumerator LerpBetweenBirdsEyeViews(float duration, float endRotationX)
     {
         float startRotationX = mapCamera.transform.rotation.eulerAngles.x;
         float time = 0;
-
         while (time < duration)
         {
             float newRotationX = Mathf.Lerp(startRotationX, endRotationX, time / duration);
-            Vector3 newRotation = new Vector3(newRotationX, mapCamera.transform.rotation.eulerAngles.y, mapCamera.transform.rotation.eulerAngles.z);
-            mapCamera.transform.rotation = Quaternion.Euler(newRotation);
+            mapCamera.transform.rotation = Quaternion.Euler(newRotationX, mapCamera.transform.rotation.eulerAngles.y, mapCamera.transform.rotation.eulerAngles.z);
             time += Time.deltaTime;
             yield return null;
         }
-
-        Vector3 finalRotation = new Vector3(endRotationX, mapCamera.transform.rotation.eulerAngles.y, mapCamera.transform.rotation.eulerAngles.z);
-        mapCamera.transform.rotation = Quaternion.Euler(finalRotation);
+        mapCamera.transform.rotation = Quaternion.Euler(endRotationX, mapCamera.transform.rotation.eulerAngles.y, mapCamera.transform.rotation.eulerAngles.z);
     }
 
     private IEnumerator LerpToLastBirdEyeView(float duration)
@@ -341,7 +389,6 @@ public class MapPlayer : MonoBehaviour
         Quaternion startRotation = transform.rotation;
         Quaternion startCameraRotation = mapCamera.transform.rotation;
         float time = 0;
-
         while (time < duration)
         {
             transform.position = Vector3.Lerp(startPosition, lastPlayerPosition, time / duration);
@@ -350,7 +397,6 @@ public class MapPlayer : MonoBehaviour
             time += Time.deltaTime;
             yield return null;
         }
-
         transform.position = lastPlayerPosition;
         transform.rotation = lastPlayerRotation;
         mapCamera.transform.rotation = lastCameraRotation;
@@ -359,73 +405,49 @@ public class MapPlayer : MonoBehaviour
     private void RotateCamera(float angle, float duration)
     {
         if (rotateCoroutine != null) { StopCoroutine(rotateCoroutine); }
-
         float currentAngle = transform.rotation.eulerAngles.y;
         float targetAngle = currentAngle + angle;
-
-        // Snap to nearest 45 degrees
         float roundedAngle = Mathf.Round(targetAngle / 45f) * 45f;
         float actualAngle = roundedAngle - currentAngle;
-
         rotateCoroutine = StartCoroutine(RotateAroundPoint(actualAngle, duration));
     }
 
     private IEnumerator RotateAroundPoint(float angle, float duration)
     {
         controller.enabled = false;
-
         Vector3 cameraPosition = mapCamera.transform.position;
         Vector3 cameraForward = mapCamera.transform.forward;
-
         Vector3 pivotPoint;
         Ray ray = new Ray(cameraPosition, cameraForward);
-        RaycastHit hit;
-
-        if (Physics.Raycast(ray, out hit, 1000f))
-        {
-            pivotPoint = hit.point;
-        }
+        if (Physics.Raycast(ray, out RaycastHit hit, 1000f)) pivotPoint = hit.point;
         else
         {
-            // Fallback if looking into the skybox
             float distance = cameraPosition.y / -cameraForward.y;
             pivotPoint = cameraPosition + cameraForward * distance;
         }
 
         Quaternion startRotation = transform.rotation;
         Quaternion targetRotation = Quaternion.AngleAxis(angle, Vector3.up) * startRotation;
-
         Vector3 initialOffset = cameraPosition - pivotPoint;
-
         float elapsedTime = 0f;
         while (elapsedTime < duration)
         {
             float t = elapsedTime / duration;
             float interpolatedAngle = Mathf.Lerp(0f, angle, t);
-
             Vector3 rotatedOffset = Quaternion.AngleAxis(interpolatedAngle, Vector3.up) * initialOffset;
-            Vector3 newCameraPosition = pivotPoint + rotatedOffset;
-
             transform.rotation = Quaternion.Slerp(startRotation, targetRotation, t);
-            transform.position = newCameraPosition;
-
+            transform.position = pivotPoint + rotatedOffset;
             elapsedTime += Time.deltaTime;
             yield return null;
         }
-
         transform.rotation = targetRotation;
         transform.position = pivotPoint + Quaternion.AngleAxis(angle, Vector3.up) * initialOffset;
-
         controller.enabled = true;
     }
 
     private void ApplyGravity()
     {
-        if (controller.isGrounded && verticalVelocity < 0)
-        {
-            verticalVelocity = -2f;
-        }
-
+        if (controller.isGrounded && verticalVelocity < 0) verticalVelocity = -2f;
         verticalVelocity += forceOfGravity * Time.deltaTime;
     }
 }
