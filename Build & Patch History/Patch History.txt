@@ -2,6 +2,11 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.4.0 - Feb 17, 2026
+- Adjusted the Replay Manager to use an index system rather than loading the entirety of the bin files into RAM.
+- Added a UI to the replay system.
+- Fixed a Z-Fighting issue with the map visualization plane.
+
 Version 1.0.3.0 - Feb 17, 2026
 - Added a Trial Creation Scene.
 

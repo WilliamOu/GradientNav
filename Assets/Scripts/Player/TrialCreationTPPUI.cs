@@ -45,10 +45,10 @@ public class TrialCreationTPPUI : MonoBehaviour
     [SerializeField] private Button generatePeaksBtn;
 
     // Internal State
-    private List<TrialSpec> _currentTrials = new List<TrialSpec>();
-    private string _currentFilePath;
-    private int _activeTrialIndex = -1;
-    private bool _uiIsUpdating = false; // Prevent infinite loops
+    private List<TrialSpec> currentTrials = new List<TrialSpec>();
+    private string currentFilePath;
+    private int activeTrialIndex = -1;
+    private bool uiIsUpdating = false; // Prevent infinite loops
 
     void OnEnable()
     {
@@ -70,8 +70,6 @@ public class TrialCreationTPPUI : MonoBehaviour
     {
         if (panel != null) panel.SetActive(true);
 
-        // Ensure UI is visible/initialized correctly at the start
-        // (We don't need to SetActive(true) anymore because it should stay Active!)
         RefreshFileList();
 
         // Setup Listeners
@@ -117,11 +115,8 @@ public class TrialCreationTPPUI : MonoBehaviour
     {
         if (panel == null) return;
 
-        // 1. Hard Toggle: If Frozen, Panel ON. If Unfrozen, Panel OFF.
         panel.SetActive(isFrozen);
 
-        // 2. Focus Safety: If we just Unfroze, force Unity to "forget" the last text box.
-        // This ensures pressing 'W' doesn't secretly type into the now-invisible input field.
         if (!isFrozen)
         {
             if (EventSystem.current != null)
@@ -179,8 +174,8 @@ public class TrialCreationTPPUI : MonoBehaviour
 
     private void LoadFile(string path)
     {
-        _currentFilePath = path;
-        _currentTrials = TrialManager.LoadTrialsFromCsv(path);
+        currentFilePath = path;
+        currentTrials = TrialManager.LoadTrialsFromCsv(path);
         RefreshTrialDropdown();
     }
 
@@ -191,32 +186,32 @@ public class TrialCreationTPPUI : MonoBehaviour
 
         if (string.IsNullOrEmpty(inputName)) inputName = "NewFile";
 
-        _currentFilePath = GetUniqueFilePath(folder, inputName);
-        _currentTrials = new List<TrialSpec> { new TrialSpec() };
+        currentFilePath = GetUniqueFilePath(folder, inputName);
+        currentTrials = new List<TrialSpec> { new TrialSpec() };
 
         SaveCurrentFile();
         RefreshFileList();
 
-        string newFileName = Path.GetFileName(_currentFilePath);
+        string newFileName = Path.GetFileName(currentFilePath);
         int index = fileDropdown.options.FindIndex(opt => opt.text == newFileName);
         if (index >= 0)
         {
             fileDropdown.value = index;
-            LoadFile(_currentFilePath);
+            LoadFile(currentFilePath);
         }
     }
 
     public void DuplicateCurrentFile()
     {
-        if (string.IsNullOrEmpty(_currentFilePath)) return;
+        if (string.IsNullOrEmpty(currentFilePath)) return;
 
         string folder = AppManager.Instance.Settings.TrialsFolderPath;
-        string currentName = Path.GetFileNameWithoutExtension(_currentFilePath);
+        string currentName = Path.GetFileNameWithoutExtension(currentFilePath);
 
         string newPath = GetUniqueFilePath(folder, currentName);
 
-        TrialManager.SaveTrialsToCsv(newPath, _currentTrials);
-        _currentFilePath = newPath;
+        TrialManager.SaveTrialsToCsv(newPath, currentTrials);
+        currentFilePath = newPath;
         RefreshFileList();
 
         string newFileName = Path.GetFileName(newPath);
@@ -224,22 +219,22 @@ public class TrialCreationTPPUI : MonoBehaviour
         if (index >= 0)
         {
             fileDropdown.value = index;
-            LoadFile(_currentFilePath);
+            LoadFile(currentFilePath);
         }
     }
 
     private void SaveCurrentFile()
     {
-        if (string.IsNullOrEmpty(_currentFilePath))
+        if (string.IsNullOrEmpty(currentFilePath))
         {
             Debug.LogWarning("Cannot save: No file path selected.");
             return;
         }
 
-        TrialManager.SaveTrialsToCsv(_currentFilePath, _currentTrials);
+        TrialManager.SaveTrialsToCsv(currentFilePath, currentTrials);
 
-        if (string.IsNullOrEmpty(_currentFilePath)) return;
-        TrialManager.SaveTrialsToCsv(_currentFilePath, _currentTrials);
+        if (string.IsNullOrEmpty(currentFilePath)) return;
+        TrialManager.SaveTrialsToCsv(currentFilePath, currentTrials);
     }
 
     private void ReturnToTitle()
@@ -259,60 +254,60 @@ public class TrialCreationTPPUI : MonoBehaviour
     {
         trialSelectorDropdown.ClearOptions();
         var options = new List<string>();
-        for (int i = 0; i < _currentTrials.Count; i++)
-            options.Add($"Trial {i + 1} ({StimulusManager.MapTypes[_currentTrials[i].MapTypeIndex]})");
+        for (int i = 0; i < currentTrials.Count; i++)
+            options.Add($"Trial {i + 1} ({StimulusManager.MapTypes[currentTrials[i].MapTypeIndex]})");
 
         trialSelectorDropdown.AddOptions(options);
 
-        if (_currentTrials.Count > 0)
+        if (currentTrials.Count > 0)
             SelectTrial(0);
         else
         {
-            _activeTrialIndex = -1;
+            activeTrialIndex = -1;
             ClearUI();
         }
     }
 
     private void SelectTrial(int index)
     {
-        if (index < 0 || index >= _currentTrials.Count) return;
-        _activeTrialIndex = index;
+        if (index < 0 || index >= currentTrials.Count) return;
+        activeTrialIndex = index;
         trialSelectorDropdown.SetValueWithoutNotify(index);
-        PopulateUI(_currentTrials[index]);
+        PopulateUI(currentTrials[index]);
         Update3DPreview();
     }
 
     private void AddNewTrial()
     {
-        _currentTrials.Add(new TrialSpec { MapTypeIndex = 0, Peaks = new List<PeakSpec>() });
+        currentTrials.Add(new TrialSpec { MapTypeIndex = 0, Peaks = new List<PeakSpec>() });
         RefreshTrialDropdown();
-        SelectTrial(_currentTrials.Count - 1);
+        SelectTrial(currentTrials.Count - 1);
     }
 
     private void RemoveCurrentTrial()
     {
-        if (_activeTrialIndex < 0) return;
-        _currentTrials.RemoveAt(_activeTrialIndex);
+        if (activeTrialIndex < 0) return;
+        currentTrials.RemoveAt(activeTrialIndex);
         RefreshTrialDropdown();
     }
 
     private void DuplicateCurrentTrial()
     {
-        if (_activeTrialIndex < 0) return;
+        if (activeTrialIndex < 0) return;
         // Simple clone (JSON is a lazy way to deep copy, or manual copy)
-        var json = JsonUtility.ToJson(_currentTrials[_activeTrialIndex]);
+        var json = JsonUtility.ToJson(currentTrials[activeTrialIndex]);
         var clone = JsonUtility.FromJson<TrialSpec>(json);
         // Note: Peak list might need manual deep copy if using classes, structs are fine
 
-        _currentTrials.Add(clone);
+        currentTrials.Add(clone);
         RefreshTrialDropdown();
-        SelectTrial(_currentTrials.Count - 1);
+        SelectTrial(currentTrials.Count - 1);
     }
 
     // --- 4. Data Binding (Spec <-> UI) ---
     private void PopulateUI(TrialSpec spec)
     {
-        _uiIsUpdating = true;
+        uiIsUpdating = true;
 
         mapTypeDropdown.ClearOptions();
         mapTypeDropdown.AddOptions(StimulusManager.MapTypes);
@@ -342,14 +337,14 @@ public class TrialCreationTPPUI : MonoBehaviour
         multiPeakContainer.SetActive(isMultiPeak);
         centerContainer.SetActive(!isMultiPeak);
 
-        _uiIsUpdating = false;
+        uiIsUpdating = false;
     }
 
     public void PushUiToData()
     {
-        if (_uiIsUpdating || _activeTrialIndex < 0) return;
+        if (uiIsUpdating || activeTrialIndex < 0) return;
 
-        var spec = _currentTrials[_activeTrialIndex];
+        var spec = currentTrials[activeTrialIndex];
 
         // Map Type
         spec.MapTypeIndex = mapTypeDropdown.value;
@@ -386,7 +381,7 @@ public class TrialCreationTPPUI : MonoBehaviour
 
         // Update Name in dropdown
         var options = trialSelectorDropdown.options;
-        options[_activeTrialIndex].text = $"Trial {_activeTrialIndex + 1} ({StimulusManager.MapTypes[spec.MapTypeIndex]})";
+        options[activeTrialIndex].text = $"Trial {activeTrialIndex + 1} ({StimulusManager.MapTypes[spec.MapTypeIndex]})";
         trialSelectorDropdown.RefreshShownValue();
 
         // Refresh Visibility
@@ -408,19 +403,19 @@ public class TrialCreationTPPUI : MonoBehaviour
         var peaks = MultiPeakSpecFactory.Create(seed, radius, count);
 
         // Apply to current
-        _currentTrials[_activeTrialIndex].Peaks = peaks;
+        currentTrials[activeTrialIndex].Peaks = peaks;
 
         // Refresh UI to show the new string
-        PopulateUI(_currentTrials[_activeTrialIndex]);
+        PopulateUI(currentTrials[activeTrialIndex]);
         Update3DPreview();
     }
 
     // --- 5. Visualization ---
     private void Update3DPreview()
     {
-        if (_activeTrialIndex < 0) return;
+        if (activeTrialIndex < 0) return;
 
-        var spec = _currentTrials[_activeTrialIndex];
+        var spec = currentTrials[activeTrialIndex];
 
         // Important: We must inject this spec into the StimulusManager 
         // so the visualizer (which calls GetIntensity) sees the NEW map.

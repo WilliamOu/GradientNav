@@ -12,32 +12,31 @@ public class Map3DVisualizer : MonoBehaviour
     [SerializeField] private Material meshMaterial;
     [SerializeField] private Gradient heatGradient;
 
-    private GameObject _visualizationObj;
-    private MeshFilter _meshFilter;
-    private MeshRenderer _meshRenderer;
-    private Mesh _mesh;
+    private GameObject visualizationObj;
+    private MeshFilter meshFilter;
+    private MeshRenderer meshRenderer;
+    private Mesh mesh;
 
     // Call this from your Game Manager or UI button
     public void ToggleMap(bool state)
     {
-        Debug.Log("GenerateMesh called");
         if (state)
         {
             // If we haven't built the mesh yet (or it was destroyed), build it
-            if (_visualizationObj == null)
+            if (visualizationObj == null)
             {
                 GenerateMesh();
             }
 
             // If we already have it, just ensure it's on and updated
-            _visualizationObj.SetActive(true);
+            visualizationObj.SetActive(true);
             UpdateMeshGeometry(); // Optional: Refresh in case map params changed while hidden
         }
         else
         {
-            if (_visualizationObj != null)
+            if (visualizationObj != null)
             {
-                _visualizationObj.SetActive(false);
+                visualizationObj.SetActive(false);
             }
         }
     }
@@ -45,27 +44,27 @@ public class Map3DVisualizer : MonoBehaviour
     private void GenerateMesh()
     {
         // Create the GameObject that holds the mesh
-        _visualizationObj = new GameObject("Generated_Stimulus_Mesh");
-        _visualizationObj.transform.SetParent(this.transform, false);
+        visualizationObj = new GameObject("Generated_Stimulus_Mesh");
+        visualizationObj.transform.SetParent(this.transform, false);
 
         // Add components
-        _meshFilter = _visualizationObj.AddComponent<MeshFilter>();
-        _meshRenderer = _visualizationObj.AddComponent<MeshRenderer>();
+        meshFilter = visualizationObj.AddComponent<MeshFilter>();
+        meshRenderer = visualizationObj.AddComponent<MeshRenderer>();
 
         // Assign Material (Critical for seeing colors)
         if (meshMaterial != null)
-            _meshRenderer.material = meshMaterial;
+            meshRenderer.material = meshMaterial;
         else
             // Fallback to a default that usually supports vertex colors
-            _meshRenderer.material = new Material(Shader.Find("Particles/Standard Surface"));
+            meshRenderer.material = new Material(Shader.Find("Particles/Standard Surface"));
 
         // Initialize mesh
-        _mesh = new Mesh();
-        _mesh.name = "StimulusHeightMap";
+        mesh = new Mesh();
+        mesh.name = "StimulusHeightMap";
         // Utilizing 32-bit index buffer allows for meshes > 65k vertices
-        _mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 
-        _meshFilter.mesh = _mesh;
+        meshFilter.mesh = mesh;
 
         // Build the geometry
         UpdateMeshGeometry();
@@ -73,7 +72,7 @@ public class Map3DVisualizer : MonoBehaviour
 
     public void UpdateMeshGeometry()
     {
-        if (_mesh == null) return;
+        if (mesh == null) return;
 
         // Gather Settings
         float mapWidth = AppManager.Instance.Settings.MapWidth;
@@ -161,13 +160,13 @@ public class Map3DVisualizer : MonoBehaviour
         }
 
         // Apply to Mesh
-        _mesh.Clear();
-        _mesh.vertices = vertices;
-        _mesh.colors = colors;
-        _mesh.uv = uvs;
-        _mesh.triangles = triangles;
+        mesh.Clear();
+        mesh.vertices = vertices;
+        mesh.colors = colors;
+        mesh.uv = uvs;
+        mesh.triangles = triangles;
 
-        _mesh.RecalculateNormals();
-        _mesh.RecalculateBounds();
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
     }
 }

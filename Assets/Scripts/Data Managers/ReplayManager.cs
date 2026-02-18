@@ -23,6 +23,7 @@ Left Knee: 14
 Left Collarbone: 15
 Left Upper Leg: 16
 */
+
 public class ReplayManager : MonoBehaviour
 {
     // --- Constants ---
@@ -38,25 +39,20 @@ public class ReplayManager : MonoBehaviour
     public bool negateX = false;
 
     [Header("Anchoring & Calibration")]
-    [Tooltip("Which bone index is the Head?")]
     [Range(0, 16)] public int headIndex = 1;
-    [Tooltip("Offset from Shadow Head bone to XRI Headset.")]
-    public Vector3 shadowHeadToSkullOffset = new Vector3(0, 0, 0);
-
-    [Space(10)]
-    [Tooltip("Manual rotation adjustment around the vertical axis.")]
+    public Vector3 shadowHeadToSkullOffset = Vector3.zero;
     [Range(0f, 360f)] public float yawCorrection = 0f;
 
-    [Header("Auto-Align Settings")]
-    public bool autoAlignOnStart = true;
-    [Tooltip("Index of Shadow Left Hand (Use Show Labels to find this).")]
+    [Header("Auto-Align")]
+    private bool autoAlignOnStart = false;
     public int shadowLeftHandIndex = 13;
-    [Tooltip("Index of Shadow Right Hand (Use Show Labels to find this).")]
     public int shadowRightHandIndex = 6;
-    public bool continuousAutoAlign = true;
+    private bool continuousAutoAlign = false;
 
-    [Header("Playback")]
+    [Header("Playback Controls")]
     [Range(0.1f, 5f)] public float playbackSpeed = 1.0f;
+    public float maxSpeed = 4.0f;
+    public float minSpeed = 0.25f;
     public bool showLabels = false;
     public bool drawSkeletonLines = false;
 
@@ -65,35 +61,84 @@ public class ReplayManager : MonoBehaviour
     public Material shadowDotMaterial;
     public Material xriProxyMaterial;
 
-    // --- Runtime ---
+    [Header("File System")]
     [SerializeField] private string loadedFolderPath;
-    [SerializeField] private float currentReplayTime = 0f;
-    [SerializeField] private float totalDuration = 0f;
-    [SerializeField] private bool isPlaying = false;
 
-    // RESTORED VARIABLES
-    private Vector3 currentGazeOrigin, currentGazeDir;
+    // --- State ---
+    private bool isPlaying = false;
+    private float currentTime = 0f;
+    private float totalDuration = 0f;
+    private float frameStepSize = 0.033f; // Will be auto-calculated from Shadow frequency
 
-    // --- Data ---
-    private List<XriFrame> xriData = new List<XriFrame>();
-    private List<ShadowFrame> shadowData = new List<ShadowFrame>();
+    // --- Data Streamers ---
+    private XriStreamer xriStream;
+    private ShadowStreamer shadowStream;
 
     // --- Scene Objects ---
     private Transform shadowRoot;
     private Transform[] shadowDots;
     private TextMesh[] dotLabels;
     private Transform xriHead, xriLeft, xriRight;
+    private Vector3 currentGazeOrigin, currentGazeDir;
 
-    // --- IDs ---
-    private const byte DevHead = 0;
-    private const byte DevLeft = 1;
-    private const byte DevRight = 2;
-    private const byte DevGaze = 3;
-    private const byte ShadowBoneCount = 17;
+    // --- Bone IDs ---
+    private const int ShadowBoneCount = 17;
 
-    // Freeze Thresholds
-    private const float ShadowFreezeThreshold = 0.04f;
-    private float XriFreezeThreshold = 0.044f;
+    public float CurrentTime => currentTime;
+    public float PlaybackSpeed => playbackSpeed;
+    public bool ContinuousAutoAlign => continuousAutoAlign;
+    public float MaxTime => totalDuration;
+    public bool IsPlaying => isPlaying;
+
+    public void TogglePlayPause()
+    {
+        isPlaying = !isPlaying;
+    }
+
+    public void SetPlayState(bool play)
+    {
+        isPlaying = play;
+    }
+
+    public void IncreasePlaybackSpeed()
+    {
+        playbackSpeed = Mathf.Min(playbackSpeed + 0.25f, maxSpeed);
+    }
+
+    public void DecreasePlaybackSpeed()
+    {
+        playbackSpeed = Mathf.Max(playbackSpeed - 0.25f, minSpeed);
+    }
+
+    public void StepFrameForward()
+    {
+        isPlaying = false; // Stepping usually pauses playback
+        SetTime(currentTime + frameStepSize);
+    }
+
+    public void StepFrameBack()
+    {
+        isPlaying = false;
+        SetTime(currentTime - frameStepSize);
+    }
+
+    public void SetTime(float time)
+    {
+        // Clamp and Set
+        currentTime = Mathf.Clamp(time, 0f, totalDuration);
+
+        // Force an immediate evaluation
+        EvaluateAtTime(currentTime);
+    }
+
+    public void ToggleAutoAlign()
+    {
+        continuousAutoAlign = !continuousAutoAlign;
+    }
+
+    // --- Unity Events ---
+
+    public void SetFolderPath(string folderPath) { loadedFolderPath = folderPath; }
 
     public void Init(Material shadowDotMaterial, Material xriProxyMaterial)
     {
@@ -101,44 +146,166 @@ public class ReplayManager : MonoBehaviour
         this.xriProxyMaterial = xriProxyMaterial;
     }
 
-    public void SetFolderPath(string folderPath) { loadedFolderPath = folderPath; }
+    private void OnDestroy()
+    {
+        CloseStreams();
+    }
 
     private void Update()
     {
-        if (!isPlaying) return;
+        if (isPlaying)
+        {
+            currentTime += Time.deltaTime * playbackSpeed;
 
-        currentReplayTime += Time.deltaTime * playbackSpeed;
-        if (currentReplayTime > totalDuration) currentReplayTime = 0f;
+            // Loop logic
+            if (currentTime >= totalDuration)
+            {
+                currentTime = 0f;
+            }
 
-        EvaluateXri(currentReplayTime);
-        EvaluateShadow(currentReplayTime);
+            EvaluateAtTime(currentTime);
+        }
 
-        // 1. Apply Anchor (Position)
-        AnchorShadowPosition();
-
-        // 2. Apply Rotation (Manual + Auto)
-        ApplyShadowRotation();
-
-        // 3. Visualization
-        UpdateLabels();
-        if (drawSkeletonLines) DrawSkeleton();
-        DrawDebugGizmos();
+        // Always run visuals updates (in case of seeking while paused)
+        if (shadowRoot != null)
+        {
+            AnchorShadowPosition();
+            ApplyShadowRotation();
+            UpdateLabels();
+            if (drawSkeletonLines) DrawSkeleton();
+            DrawDebugGizmos();
+        }
     }
 
-    // --- Math: The Closed Form Solution ---
+    // --- Core Logic ---
+
+    public void BeginReplayFromFolder()
+    {
+        CloseStreams();
+
+        try
+        {
+            string[] xriFiles = Directory.GetFiles(loadedFolderPath, "*_XRI.bin");
+            string[] shadowFiles = Directory.GetFiles(loadedFolderPath, "*_Shadow.bin");
+
+            if (xriFiles.Length == 0 || shadowFiles.Length == 0)
+            {
+                Debug.LogError("ReplayManager: Missing XRI or Shadow files in folder.");
+                return;
+            }
+
+            // 1. Open Streams & Build Indices
+            // This reads the whole file structure but skips the heavy data, building a map in RAM.
+            xriStream = new XriStreamer(xriFiles[0]);
+            shadowStream = new ShadowStreamer(shadowFiles[0]);
+
+            // 2. Sync Time Bases
+            // We align both streams to the earliest timestamp found.
+            long startTick = Math.Min(xriStream.StartTick, shadowStream.StartTick);
+            long freq = shadowStream.Frequency; // Shadow usually has the reliable frequency
+
+            if (freq == 0) freq = System.Diagnostics.Stopwatch.Frequency;
+
+            xriStream.SetTiming(startTick, freq);
+            shadowStream.SetTiming(startTick, freq);
+
+            // 3. Setup Duration & Steps
+            totalDuration = Mathf.Max(xriStream.Duration, shadowStream.Duration);
+
+            // Calculate a single "Frame" as the time between two shadow samples
+            if (shadowStream.FrameCount > 1)
+                frameStepSize = shadowStream.Duration / shadowStream.FrameCount;
+
+            Debug.Log($"[Replay] Loaded. Duration: {totalDuration:F2}s. Frame Step: {frameStepSize:F4}s");
+
+            // 4. Spawn & Reset
+            SpawnVisuals();
+            SetTime(0f);
+
+            if (autoAlignOnStart)
+            {
+                CalculateAutoAlignYaw();
+                ApplyShadowRotation();
+            }
+
+            isPlaying = true;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[Replay] Error Loading: {e.Message}");
+            CloseStreams();
+        }
+    }
+
+    private void CloseStreams()
+    {
+        isPlaying = false;
+        xriStream?.Dispose(); xriStream = null;
+        shadowStream?.Dispose(); shadowStream = null;
+
+        if (shadowRoot) Destroy(shadowRoot.gameObject);
+        if (xriHead) Destroy(xriHead.gameObject);
+        if (xriLeft) Destroy(xriLeft.gameObject);
+        if (xriRight) Destroy(xriRight.gameObject);
+    }
+
+    private void EvaluateAtTime(float time)
+    {
+        // 1. Evaluate Shadow (Body)
+        if (shadowStream != null)
+        {
+            // This function handles the file seeking and interpolation
+            var (a, b, t) = shadowStream.GetFrame(time);
+
+            // Check for "Freeze" (if gap is too large, snap to A)
+            if (b.Time - a.Time > 0.1f) t = 0f;
+
+            for (int i = 0; i < ShadowBoneCount; i++)
+            {
+                if (shadowDots[i] != null)
+                {
+                    Vector3 raw = Vector3.Lerp(a.Positions[i], b.Positions[i], t);
+
+                    // Apply Import Settings
+                    raw *= importScale;
+                    Vector3 p = MapAxis(raw, axisMapping);
+                    if (negateX) p.x = -p.x;
+
+                    shadowDots[i].localPosition = p;
+                }
+            }
+        }
+
+        // 2. Evaluate XRI (Headset/Controllers)
+        if (xriStream != null)
+        {
+            var (a, b, t) = xriStream.GetFrame(time);
+            if (b.Time - a.Time > 0.1f) t = 0f;
+
+            if (xriHead)
+            {
+                xriHead.localPosition = Vector3.Lerp(a.HeadPos, b.HeadPos, t);
+                xriHead.localRotation = Quaternion.Slerp(a.HeadRot, b.HeadRot, t);
+            }
+            if (xriLeft) xriLeft.localPosition = Vector3.Lerp(a.LPos, b.LPos, t);
+            if (xriRight) xriRight.localPosition = Vector3.Lerp(a.RPos, b.RPos, t);
+
+            currentGazeOrigin = Vector3.Lerp(a.GazeOrigin, b.GazeOrigin, t);
+            currentGazeDir = Vector3.Slerp(a.GazeDirection, b.GazeDirection, t);
+        }
+    }
+
+    // --- Math & Visuals Helpers (Unchanged Logic) ---
+
     [ContextMenu("Calculate Auto-Align Yaw")]
     public void CalculateAutoAlignYaw()
     {
         if (xriHead == null || shadowDots == null) return;
-
-        // Ensure indices are valid
         if (shadowLeftHandIndex >= shadowDots.Length || shadowRightHandIndex >= shadowDots.Length) return;
 
-        // 1. Get XRI Vectors (Head -> Hand) on the flat floor plane (XZ)
         Vector3 xriL = Vector3.ProjectOnPlane(xriLeft.position - xriHead.position, Vector3.up);
         Vector3 xriR = Vector3.ProjectOnPlane(xriRight.position - xriHead.position, Vector3.up);
 
-        // 2. Get Shadow Vectors (Head -> Hand) in LOCAL space (un-rotated)
         Vector3 sHeadPos = shadowDots[headIndex].localPosition;
         Vector3 sLPos = shadowDots[shadowLeftHandIndex].localPosition;
         Vector3 sRPos = shadowDots[shadowRightHandIndex].localPosition;
@@ -146,196 +313,34 @@ public class ReplayManager : MonoBehaviour
         Vector3 shadowL = Vector3.ProjectOnPlane(sLPos - sHeadPos, Vector3.up);
         Vector3 shadowR = Vector3.ProjectOnPlane(sRPos - sHeadPos, Vector3.up);
 
-        // 3. Solve for Theta
         float crossSum = (shadowL.z * xriL.x - shadowL.x * xriL.z) + (shadowR.z * xriR.x - shadowR.x * xriR.z);
         float dotSum = (shadowL.x * xriL.x + shadowL.z * xriL.z) + (shadowR.x * xriR.x + shadowR.z * xriR.z);
 
-        float thetaRad = Mathf.Atan2(crossSum, dotSum);
-        float thetaDeg = thetaRad * Mathf.Rad2Deg;
-
-        yawCorrection = thetaDeg;
+        yawCorrection = Mathf.Atan2(crossSum, dotSum) * Mathf.Rad2Deg;
         if (yawCorrection < 0) yawCorrection += 360f;
-
-        Debug.Log($"[AutoAlign] Calculated Offset: {yawCorrection:F1} degrees");
     }
 
-    private void ApplyShadowRotation()
+    public void ApplyShadowRotation()
     {
         if (continuousAutoAlign) CalculateAutoAlignYaw();
-
         if (shadowRoot != null && xriHead != null)
         {
             shadowRoot.rotation = Quaternion.Euler(0, yawCorrection, 0);
-            AnchorShadowPosition();
         }
     }
 
     private void AnchorShadowPosition()
     {
         if (xriHead == null || shadowDots == null) return;
-
         Transform shadowHead = shadowDots[headIndex];
         if (shadowHead == null) return;
 
+        // Where the head SHOULD be
         Vector3 targetPos = xriHead.position - (xriHead.rotation * shadowHeadToSkullOffset);
+        // Where the head IS (in world space)
         Vector3 currentHeadWorld = shadowHead.position;
-        Vector3 delta = targetPos - currentHeadWorld;
-
-        shadowRoot.position += delta;
-    }
-
-    // --- Visualization Updates ---
-
-    private void UpdateLabels()
-    {
-        if (dotLabels == null) return;
-
-        for (int i = 0; i < dotLabels.Length; i++)
-        {
-            if (dotLabels[i] == null) continue;
-
-            if (!showLabels)
-            {
-                if (dotLabels[i].gameObject.activeSelf) dotLabels[i].gameObject.SetActive(false);
-                continue;
-            }
-
-            if (!dotLabels[i].gameObject.activeSelf) dotLabels[i].gameObject.SetActive(true);
-            dotLabels[i].transform.position = shadowDots[i].position + Vector3.up * 0.1f;
-            dotLabels[i].transform.rotation = Quaternion.LookRotation(Camera.main.transform.forward);
-        }
-    }
-
-    // --- Standard Load/Eval Logic ---
-
-    public void BeginReplayFromFolder()
-    {
-        StopReplay();
-        try
-        {
-            string[] xriFiles = Directory.GetFiles(loadedFolderPath, "*_XRI.bin");
-            string[] shadowFiles = Directory.GetFiles(loadedFolderPath, "*_Shadow.bin");
-            if (xriFiles.Length == 0 || shadowFiles.Length == 0) return;
-
-            long minTick = long.MaxValue;
-            long maxTick = long.MinValue;
-            long fileFreq = System.Diagnostics.Stopwatch.Frequency;
-
-            LoadShadowBin(shadowFiles[0], ref minTick, ref maxTick, ref fileFreq);
-            LoadXriBin(xriFiles[0], ref minTick, ref maxTick);
-            NormalizeTimestamps(minTick, fileFreq);
-
-            if (shadowData.Count > 0) totalDuration = shadowData[shadowData.Count - 1].Time;
-
-            SpawnVisuals();
-            currentReplayTime = 0f;
-
-            // --- AUTO ALIGN START ---
-            EvaluateXri(0f);
-            EvaluateShadow(0f);
-
-            if (autoAlignOnStart)
-            {
-                CalculateAutoAlignYaw();
-                ApplyShadowRotation();
-            }
-            // ------------------------
-
-            isPlaying = true;
-        }
-        catch (Exception e) { Debug.LogError(e); }
-    }
-
-    public void StopReplay()
-    {
-        isPlaying = false;
-        xriData.Clear(); shadowData.Clear();
-        if (shadowRoot) Destroy(shadowRoot.gameObject);
-        if (xriHead) Destroy(xriHead.gameObject);
-        if (xriLeft) Destroy(xriLeft.gameObject);
-        if (xriRight) Destroy(xriRight.gameObject);
-    }
-
-    private void LoadXriBin(string path, ref long minTick, ref long maxTick)
-    {
-        using var br = new BinaryReader(File.OpenRead(path));
-        br.ReadInt32(); br.ReadInt32();
-        int count = br.ReadInt32();
-        bool hasState = (br.ReadByte() & 1) != 0;
-
-        for (int i = 0; i < count; i++)
-        {
-            var f = new XriFrame();
-            f.Ticks = br.ReadInt64();
-            if (hasState) br.ReadByte();
-            for (int d = 0; d < 4; d++)
-            {
-                byte id = br.ReadByte();
-                Vector3 v = new Vector3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
-                if (id == DevGaze) { f.GazeOrigin = v; f.GazeDirection = new Vector3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle()); }
-                else
-                {
-                    Quaternion q = new Quaternion(br.ReadSingle(), br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
-                    if (id == DevHead) { f.HeadPos = v; f.HeadRot = q; }
-                    else if (id == DevLeft) { f.LPos = v; f.LRot = q; }
-                    else if (id == DevRight) { f.RPos = v; f.RRot = q; }
-                }
-            }
-            xriData.Add(f);
-            if (f.Ticks < minTick) minTick = f.Ticks;
-            if (f.Ticks > maxTick) maxTick = f.Ticks;
-        }
-    }
-
-    private void LoadShadowBin(string path, ref long minTick, ref long maxTick, ref long fileFreq)
-    {
-        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
-        using var br = new BinaryReader(fs);
-        br.ReadInt32(); br.ReadInt32(); br.ReadInt32();
-        fileFreq = br.ReadInt64();
-        br.BaseStream.Seek(80, SeekOrigin.Current);
-        long len = br.BaseStream.Length;
-
-        while (br.BaseStream.Position < len)
-        {
-            var f = new ShadowFrame();
-            f.Ticks = br.ReadInt64();
-            br.BaseStream.Seek(8, SeekOrigin.Current);
-            for (int b = 0; b < ShadowBoneCount; b++)
-            {
-                float x = br.ReadSingle(); float y = br.ReadSingle(); float z = br.ReadSingle();
-                f.SetBone(b, new Vector3(x, y, z));
-                br.ReadSingle(); br.ReadSingle(); br.ReadSingle(); br.ReadSingle();
-            }
-            shadowData.Add(f);
-            if (f.Ticks < minTick) minTick = f.Ticks;
-            if (f.Ticks > maxTick) maxTick = f.Ticks;
-        }
-    }
-
-    private void NormalizeTimestamps(long start, long freq)
-    {
-        double f = (double)freq;
-        foreach (var fr in xriData) fr.Time = (float)((fr.Ticks - start) / f);
-        foreach (var fr in shadowData) fr.Time = (float)((fr.Ticks - start) / f);
-    }
-
-    private void EvaluateShadow(float time)
-    {
-        var (a, b, t) = FindFrame(shadowData, time);
-        if (b.Time - a.Time > ShadowFreezeThreshold) t = 0f;
-
-        for (int i = 0; i < ShadowBoneCount; i++)
-        {
-            if (shadowDots[i] != null)
-            {
-                Vector3 raw = Vector3.Lerp(a.Positions[i], b.Positions[i], t);
-                raw *= importScale;
-                Vector3 p = MapAxis(raw, axisMapping);
-                if (negateX) p.x = -p.x;
-                shadowDots[i].localPosition = p;
-            }
-        }
+        // Move root by the difference
+        shadowRoot.position += (targetPos - currentHeadWorld);
     }
 
     private Vector3 MapAxis(Vector3 v, AxisPermutation map)
@@ -350,36 +355,6 @@ public class ReplayManager : MonoBehaviour
             case AxisPermutation.ZYX: return new Vector3(v.z, v.y, v.x);
             default: return v;
         }
-    }
-
-    private void EvaluateXri(float time)
-    {
-        var (a, b, t) = FindFrame(xriData, time);
-        if (b.Time - a.Time > XriFreezeThreshold) t = 0f;
-        if (xriHead)
-        {
-            xriHead.localPosition = Vector3.Lerp(a.HeadPos, b.HeadPos, t);
-            xriHead.localRotation = Quaternion.Slerp(a.HeadRot, b.HeadRot, t);
-        }
-        if (xriLeft) xriLeft.localPosition = Vector3.Lerp(a.LPos, b.LPos, t);
-        if (xriRight) xriRight.localPosition = Vector3.Lerp(a.RPos, b.RPos, t);
-        currentGazeOrigin = Vector3.Lerp(a.GazeOrigin, b.GazeOrigin, t);
-        currentGazeDir = Vector3.Slerp(a.GazeDirection, b.GazeDirection, t);
-    }
-
-    private (T, T, float) FindFrame<T>(List<T> list, float time) where T : IFrame
-    {
-        if (list.Count == 0) return (default, default, 0);
-        int idx = 0;
-        for (int i = 0; i < list.Count - 1; i++)
-        {
-            if (time >= list[i].Time && time < list[i + 1].Time) { idx = i; break; }
-        }
-        var a = list[idx];
-        var b = (idx + 1 < list.Count) ? list[idx + 1] : a;
-        float gap = b.Time - a.Time;
-        float t = gap > 1e-5f ? (time - a.Time) / gap : 0f;
-        return (a, b, t);
     }
 
     private void SpawnVisuals()
@@ -399,7 +374,6 @@ public class ReplayManager : MonoBehaviour
             dot.name = $"Bone_{i}";
             shadowDots[i] = dot.transform;
 
-            // Spawn Label
             GameObject labelObj = new GameObject($"Label_{i}");
             labelObj.transform.SetParent(shadowRoot);
             labelObj.SetActive(showLabels);
@@ -426,6 +400,21 @@ public class ReplayManager : MonoBehaviour
         return go.transform;
     }
 
+    private void UpdateLabels()
+    {
+        if (dotLabels == null) return;
+        for (int i = 0; i < dotLabels.Length; i++)
+        {
+            if (dotLabels[i] == null) continue;
+            if (dotLabels[i].gameObject.activeSelf != showLabels) dotLabels[i].gameObject.SetActive(showLabels);
+            if (showLabels)
+            {
+                dotLabels[i].transform.position = shadowDots[i].position + Vector3.up * 0.1f;
+                dotLabels[i].transform.rotation = Quaternion.LookRotation(Camera.main.transform.forward);
+            }
+        }
+    }
+
     private void DrawDebugGizmos()
     {
         if (currentGazeDir != Vector3.zero && xriHead != null)
@@ -443,7 +432,283 @@ public class ReplayManager : MonoBehaviour
                 Debug.DrawLine(shadowDots[i].position, shadowDots[i + 1].position, Color.gray);
     }
 
-    private interface IFrame { float Time { get; set; } }
-    private class XriFrame : IFrame { public long Ticks; public float Time { get; set; } public Vector3 HeadPos, LPos, RPos; public Quaternion HeadRot, LRot, RRot; public Vector3 GazeOrigin, GazeDirection; }
-    private class ShadowFrame : IFrame { public long Ticks; public float Time { get; set; } public Vector3[] Positions = new Vector3[17]; public void SetBone(int i, Vector3 p) { Positions[i] = p; } }
+    // ===================================================================================
+    //  STREAMING ARCHITECTURE (Indexed)
+    // ===================================================================================
+
+    public interface IFrame
+    {
+        long Ticks { get; set; }
+        float Time { get; set; }
+    }
+
+    public class XriFrame : IFrame
+    {
+        public long Ticks { get; set; }
+        public float Time { get; set; }
+        public Vector3 HeadPos, LPos, RPos;
+        public Quaternion HeadRot, LRot, RRot;
+        public Vector3 GazeOrigin, GazeDirection;
+
+        public void CopyFrom(XriFrame o)
+        {
+            Ticks = o.Ticks; Time = o.Time;
+            HeadPos = o.HeadPos; LPos = o.LPos; RPos = o.RPos;
+            HeadRot = o.HeadRot; LRot = o.LRot; RRot = o.RRot;
+            GazeOrigin = o.GazeOrigin; GazeDirection = o.GazeDirection;
+        }
+    }
+
+    public class ShadowFrame : IFrame
+    {
+        public long Ticks { get; set; }
+        public float Time { get; set; }
+        public Vector3[] Positions = new Vector3[17];
+
+        public void CopyFrom(ShadowFrame o)
+        {
+            Ticks = o.Ticks; Time = o.Time;
+            Array.Copy(o.Positions, Positions, 17);
+        }
+    }
+
+    // --- Base Indexed Streamer ---
+    public abstract class IndexedStreamer<T> : IDisposable where T : class, IFrame, new()
+    {
+        protected FileStream fs;
+        protected BinaryReader br;
+
+        // RAM Indices (Lightweight)
+        protected List<long> fileOffsets = new List<long>(); // Where does the frame start?
+        protected List<float> timeStamps = new List<float>(); // What time is it?
+
+        // Timing
+        public long StartTick { get; protected set; }
+        public float Duration { get; protected set; }
+        public int FrameCount => fileOffsets.Count;
+
+        protected long globalStartTick;
+        protected double frequency;
+
+        // Playback Buffers
+        protected T frameA = new T();
+        protected T frameB = new T();
+        private int lastReadIndex = -1;
+
+        public IndexedStreamer(string path)
+        {
+            fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192);
+            br = new BinaryReader(fs);
+
+            ReadHeader();
+            BuildIndex(); // Scan file once
+        }
+
+        protected abstract void ReadHeader();
+        protected abstract void ReadFramePayload(T target); // Read actual data
+        protected abstract void SkipFramePayload(); // Just move pointer forward
+
+        // The "Scan"
+        private void BuildIndex()
+        {
+            long len = fs.Length;
+            // Assumes file pointer is at start of first frame data
+            while (fs.Position < len)
+            {
+                long pos = fs.Position;
+                long ticks = br.ReadInt64(); // Every frame starts with Ticks
+
+                if (fileOffsets.Count == 0) StartTick = ticks;
+
+                fileOffsets.Add(pos);
+                // Store raw duration relative to self (will normalize later)
+                // We don't have frequency yet, so just store ticks.
+                // NOTE: We'll overwrite 'timeStamps' once we set timing.
+                timeStamps.Add(0); // Placeholder
+
+                // Reset to start of payload (after ticks) or just continue?
+                // Standard convention: ReadTicks advanced 8 bytes.
+                // We need to skip the REST of the frame.
+                SkipFramePayload();
+            }
+        }
+
+        public void SetTiming(long globalStart, long freq)
+        {
+            globalStartTick = globalStart;
+            frequency = (double)freq;
+
+            // Retroactively calculate seconds for the index
+            // We have to re-read ticks or just assume we can't without re-seeking?
+            // Actually, to keep memory low, we shouldn't store ticks in RAM.
+            // But we need to know the time of the frames for BinarySearch.
+
+            // Re-pass: Update timestamps in the list.
+            // This is fast (RAM only) if we stored ticks, but we didn't store ticks to save RAM.
+            // Compromise: We need to re-read the ticks from disk? No, that's slow.
+            // Better approach: Store Ticks in the BuildIndex phase temporarily, then convert.
+
+            // For now, let's just re-read the ticks from the start, it's safer.
+            for (int i = 0; i < fileOffsets.Count; i++)
+            {
+                fs.Seek(fileOffsets[i], SeekOrigin.Begin);
+                long t = br.ReadInt64();
+                timeStamps[i] = (float)((t - globalStartTick) / frequency);
+            }
+
+            if (timeStamps.Count > 0)
+                Duration = timeStamps[timeStamps.Count - 1];
+        }
+
+        public (T, T, float) GetFrame(float time)
+        {
+            if (fileOffsets.Count == 0) return (frameA, frameA, 0);
+
+            // 1. Find the index for 'time'
+            int index = timeStamps.BinarySearch(time);
+            if (index < 0) index = ~index - 1;
+            if (index < 0) index = 0;
+            if (index >= fileOffsets.Count - 1) index = fileOffsets.Count - 2;
+            if (index < 0) index = 0; // fallback if only 1 frame
+
+            // 2. Do we need to read from disk?
+            // If we are already at this index, don't re-read
+            if (index != lastReadIndex)
+            {
+                ReadAtIndex(index, frameA);
+                ReadAtIndex(index + 1, frameB);
+                lastReadIndex = index;
+            }
+
+            // 3. Interpolate
+            float t = 0f;
+            float duration = frameB.Time - frameA.Time;
+            if (duration > 1e-5f)
+                t = (time - frameA.Time) / duration;
+
+            t = Mathf.Clamp01(t);
+            return (frameA, frameB, t);
+        }
+
+        private void ReadAtIndex(int index, T target)
+        {
+            if (index < 0 || index >= fileOffsets.Count) return;
+
+            fs.Seek(fileOffsets[index], SeekOrigin.Begin);
+
+            // We must read ticks again to set the object state, 
+            // even though we have it in the index
+            target.Ticks = br.ReadInt64();
+            target.Time = timeStamps[index];
+
+            ReadFramePayload(target);
+        }
+
+        public void Dispose()
+        {
+            br?.Close();
+            fs?.Close();
+        }
+    }
+
+    // --- XRI Implementation ---
+    public class XriStreamer : IndexedStreamer<XriFrame>
+    {
+        private bool hasState;
+        public XriStreamer(string path) : base(path) { }
+
+        protected override void ReadHeader()
+        {
+            br.ReadInt32(); // Version
+            br.ReadInt32(); // Magic
+            br.ReadInt32(); // Count
+            hasState = (br.ReadByte() & 1) != 0;
+        }
+
+        protected override void SkipFramePayload()
+        {
+            // Ticks already read.
+            if (hasState) fs.Seek(1, SeekOrigin.Current); // Skip state byte
+
+            for (int i = 0; i < 4; i++)
+            {
+                byte id = br.ReadByte();
+                // Vector3 is 12 bytes
+                fs.Seek(12, SeekOrigin.Current);
+
+                if (id == 3) // DevGaze
+                {
+                    // Gaze has another Vector3 (Dir)
+                    fs.Seek(12, SeekOrigin.Current);
+                }
+                else
+                {
+                    // Others have Quaternion (16 bytes)
+                    fs.Seek(16, SeekOrigin.Current);
+                }
+            }
+        }
+
+        protected override void ReadFramePayload(XriFrame f)
+        {
+            // Ticks read by Base.
+            if (hasState) br.ReadByte();
+
+            for (int i = 0; i < 4; i++)
+            {
+                byte id = br.ReadByte();
+                Vector3 v = new Vector3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
+
+                if (id == 3) // DevGaze
+                {
+                    f.GazeOrigin = v;
+                    f.GazeDirection = new Vector3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
+                }
+                else
+                {
+                    Quaternion q = new Quaternion(br.ReadSingle(), br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
+                    if (id == 0) { f.HeadPos = v; f.HeadRot = q; }
+                    else if (id == 1) { f.LPos = v; f.LRot = q; }
+                    else if (id == 2) { f.RPos = v; f.RRot = q; }
+                }
+            }
+        }
+    }
+
+    // --- Shadow Implementation ---
+    public class ShadowStreamer : IndexedStreamer<ShadowFrame>
+    {
+        public long Frequency { get; private set; }
+        public ShadowStreamer(string path) : base(path) { }
+
+        protected override void ReadHeader()
+        {
+            br.ReadInt32();
+            br.ReadInt32();
+            br.ReadInt32();
+            Frequency = br.ReadInt64();
+            fs.Seek(80, SeekOrigin.Current); // Padding
+        }
+
+        protected override void SkipFramePayload()
+        {
+            // Ticks already read.
+            // Shadow frame body: Skip 8 bytes + 17 bones
+            // Each bone: Vector3(12) + Skip(16) = 28 bytes
+            // Total: 8 + (17 * 28) = 484 bytes
+            fs.Seek(8 + (17 * 28), SeekOrigin.Current);
+        }
+
+        protected override void ReadFramePayload(ShadowFrame f)
+        {
+            fs.Seek(8, SeekOrigin.Current); // Skip 8
+            for (int b = 0; b < 17; b++)
+            {
+                f.Positions[b].x = br.ReadSingle();
+                f.Positions[b].y = br.ReadSingle();
+                f.Positions[b].z = br.ReadSingle();
+                fs.Seek(16, SeekOrigin.Current); // Skip 4 floats
+            }
+        }
+    }
 }

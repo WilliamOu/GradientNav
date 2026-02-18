@@ -238,7 +238,6 @@ GameObject:
   - component: {fileID: 6682466764339235409}
   - component: {fileID: 2999250725697846251}
   - component: {fileID: 5344354162186827549}
-  - component: {fileID: 3287249509793844344}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -329,38 +328,6 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &3287249509793844344
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6531515970162106666}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 81e54ecb69328384592e3014ed95dc7e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  playerController: {fileID: 0}
-  fileDropdown: {fileID: 0}
-  newFileNameInput: {fileID: 0}
-  createNewFileBtn: {fileID: 0}
-  saveFileBtn: {fileID: 0}
-  backBtn: {fileID: 0}
-  trialSelectorDropdown: {fileID: 0}
-  addTrialBtn: {fileID: 0}
-  removeTrialBtn: {fileID: 0}
-  duplicateTrialBtn: {fileID: 0}
-  mapTypeDropdown: {fileID: 0}
-  sigmaInput: {fileID: 0}
-  spawnInput: {fileID: 0}
-  goalInput: {fileID: 0}
-  centerContainer: {fileID: 0}
-  centerInput: {fileID: 0}
-  multiPeakContainer: {fileID: 0}
-  peaksInput: {fileID: 0}
-  peakCountGenInput: {fileID: 0}
-  generatePeaksBtn: {fileID: 0}
 --- !u!1 &7685337431608679667
 GameObject:
   m_ObjectHideFlags: 0

@@ -28,10 +28,6 @@ public class GradientNavigationSceneManager : MonoBehaviour
     private bool allowTrainingPause = false;
     private bool allowRecenter = true;
 
-    // ------------------------------------------------------------------------
-    // UNITY LIFECYCLE
-    // ------------------------------------------------------------------------
-
     private void Start()
     {
         SetState(SessionDataManager.GameState.Idle);
@@ -54,12 +50,12 @@ public class GradientNavigationSceneManager : MonoBehaviour
         double t = Time.realtimeSinceStartupAsDouble;
         LogManager.UpdateMainThreadTimeMapping(sw, t);
 
-        // 1. Always update passive systems
+        // Always update passive systems
         AppManager.Instance.Logger.ManualUpdate();
         AppManager.Instance.Shadow.ManualUpdate();
         AppManager.Instance.Player.Minimap.ManualUpdate();
 
-        // 2. Input: Pause / Unpause
+        // Input: Pause / Unpause
         if (GetPauseToggleInput())
         {
             if (state == SessionDataManager.GameState.Trial)
@@ -74,13 +70,13 @@ public class GradientNavigationSceneManager : MonoBehaviour
             return; // Don't process other inputs this frame
         }
 
-        // 3. Input: VR Recenter (Available generally if VR)
+        // Input: VR Recenter (Available generally if VR)
         if (AppManager.Instance.Session.IsVRMode && GetRecenteringInput())
         {
             AppManager.Instance.Player.TeleportVRToCoordinates(0, 0);
         }
 
-        // 4. Game Logic (Only runs during Active Trial)
+        // Game Logic (Only runs during Active Trial)
         if (state != SessionDataManager.GameState.Trial) return;
 
         AppManager.Instance.Player.UpdateStimulusUI();
@@ -102,10 +98,6 @@ public class GradientNavigationSceneManager : MonoBehaviour
         }
     }
 
-    // ------------------------------------------------------------------------
-    // MAIN EXPERIMENT LOOP
-    // ------------------------------------------------------------------------
-
     private IEnumerator RunAllTrials()
     {
         AppManager.Instance.Logger.BeginLogging();
@@ -114,7 +106,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         // Global blackout
         AppManager.Instance.Player.EnableBlackscreen();
 
-        // --- PHASE 0: RECENTER ---
+        // RECENTER
         if (AppManager.Instance.Session.IsVRMode)
         {
             allowRecenter = true;
@@ -125,24 +117,24 @@ public class GradientNavigationSceneManager : MonoBehaviour
             allowRecenter = false;
         }
 
-        // --- PHASE 1: TRAINING ---
+        // TRAINING 
         if (AppManager.Instance.Settings.EnableTraining && AppManager.Instance.Session.IsVRMode)
             yield return RunTrainingPhase();
 
         AppManager.Instance.Player.DisableBlackscreen();
         // Global blackout end
 
-        // --- PHASE 2: EXPERIMENT TRIALS ---
+        // EXPERIMENT TRIALS
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
 
         int totalTrials = AppManager.Instance.Trial.GetTotalTrialCount();
 
         for (trialIndex = 0; trialIndex < totalTrials; trialIndex++)
         {
-            // A. Get Data from TrialManager
+            // Get Data from TrialManager
             TrialSpec spec = AppManager.Instance.Trial.GetTrial(trialIndex);
 
-            // B. Generate Map (Visuals + Heatmap math)
+            // Generate Map (Visuals + Heatmap math)
             // Note: Even if we loaded from CSV, we must Generate to set up the Stimulus intensity logic
             AppManager.Instance.Stimulus.GenerateMap(
                 spec.MapTypeIndex,
@@ -154,7 +146,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
                 sigmaOverride: spec.SigmaOverride
             );
 
-            // C. Setup Session Data
+            // Setup Session Data
             startXZ = spec.SpawnXZ;
             Vector2 targetXZ = AppManager.Instance.Stimulus.GetTargetPosition(); // Truth source from Stimulus
 
@@ -165,12 +157,12 @@ public class GradientNavigationSceneManager : MonoBehaviour
             AppManager.Instance.Session.SpawnPosition = startXZ;
             AppManager.Instance.Session.GoalPosition = targetXZ;
 
-            // D. Reset Counters
+            // Reset Counters
             attemptsRemaining = AppManager.Instance.Settings.ParticipantMaxTestCount;
             timeRemaining = AppManager.Instance.Settings.TimeToSeek;
             trialComplete = false;
 
-            // E. Move Player to Start
+            // Move Player to Start
             if (!AppManager.Instance.Session.IsVRMode)
             {
                 AppManager.Instance.Player.Teleport(startXZ.x, startXZ.y);
@@ -180,18 +172,18 @@ public class GradientNavigationSceneManager : MonoBehaviour
                 yield return WalkOrientTo(startXZ);
             }
 
-            // F. Begin Trial
+            // Begin Trial
             SetState(SessionDataManager.GameState.Trial);
             AppManager.Instance.Logger.LogEvent($"TRIAL_START {trialIndex}");
 
-            // G. Wait for Completion (EndTrial() sets trialComplete = true)
+            // Wait for Completion (EndTrial() sets trialComplete = true)
             yield return new WaitUntil(() => trialComplete);
 
-            // H. Clean up
+            // Clean up
             SetState(SessionDataManager.GameState.Idle);
         }
 
-        // --- PHASE 3: FINISH ---
+        // FINISH
         SetState(SessionDataManager.GameState.Idle);
         AppManager.Instance.Logger.EndLogging();
         AppManager.Instance.Shadow.EndLogging();
