@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 
 public class TrialSpec
@@ -192,86 +193,6 @@ public class TrialManager : MonoBehaviour
         return true;
     }
 
-    private List<TrialSpec> LoadTrialsFromCsv(string csvPath)
-    {
-        var lines = File.ReadAllLines(csvPath);
-        var trials = new List<TrialSpec>();
-
-        if (lines.Length == 0) return trials;
-
-        int headerLineIndex = -1;
-        for (int i = 0; i < lines.Length; i++)
-        {
-            var ln = lines[i].Trim();
-            if (string.IsNullOrWhiteSpace(ln)) continue;
-            if (ln.StartsWith("#")) continue;
-            headerLineIndex = i;
-            break;
-        }
-
-        if (headerLineIndex < 0) return trials;
-
-        var header = SplitCsvLine(lines[headerLineIndex]).Select(h => h.Trim().Trim('"')).ToList();
-        int Col(string name) => header.FindIndex(h => string.Equals(h, name, StringComparison.OrdinalIgnoreCase));
-
-        int cMapType = Col("MapType");
-        int cSpawnX = Col("SpawnX");
-        int cSpawnZ = Col("SpawnZ");
-        int cCenterX = Col("CenterX");
-        int cCenterZ = Col("CenterZ");
-        int cGoals = Col("Goals");
-        int cPeaks = Col("Peaks");
-        int cSigma = Col("Sigma");
-
-        if (cMapType < 0 || cSpawnX < 0 || cSpawnZ < 0)
-            throw new Exception("CSV missing required columns.");
-
-        for (int i = headerLineIndex + 1; i < lines.Length; i++)
-        {
-            string ln = lines[i].Trim();
-            if (string.IsNullOrWhiteSpace(ln) || ln.StartsWith("#")) continue;
-
-            var cells = SplitCsvLine(lines[i]);
-            string Get(int col) => (col < 0 || col >= cells.Count) ? "" : cells[col];
-
-            int mapType = ParseMapTypeIndex(Get(cMapType));
-            if (!TryParseFloat(Get(cSpawnX), out float sx) || !TryParseFloat(Get(cSpawnZ), out float sz)) continue;
-
-            float cx = 0f, cz = 0f;
-            TryParseFloat(Get(cCenterX), out cx);
-            TryParseFloat(Get(cCenterZ), out cz);
-
-            var goals = ParseVector2List(Get(cGoals));
-            Vector2? goalOverride = (goals.Count > 0) ? goals[0] : (Vector2?)null;
-
-            var peaks = ParsePeakList(Get(cPeaks));
-
-            if (mapType == 3 && (peaks == null || peaks.Count == 0))
-            {
-                Debug.LogWarning($"Skipping line {i + 1}: Multi-Peak requires Peaks.");
-                continue;
-            }
-            
-            float? sigmaOverride = null;
-            if (cSigma >= 0 && TryParseFloat(Get(cSigma), out float sVal))
-            {
-                sigmaOverride = sVal;
-            }
-
-            trials.Add(new TrialSpec
-            {
-                MapTypeIndex = mapType,
-                SpawnXZ = new Vector2(sx, sz),
-                CenterXZ = new Vector2(cx, cz),
-                GoalOverride = goalOverride,
-                ExtraGoals = (goals.Count > 1) ? goals.Skip(1).ToList() : new List<Vector2>(),
-                Peaks = peaks,
-                SigmaOverride = sigmaOverride // NEW: Assign the value
-            });
-        }
-        return trials;
-    }
-
     // --- Static Helpers ---
     private static List<string> SplitCsvLine(string line)
     {
@@ -331,5 +252,128 @@ public class TrialManager : MonoBehaviour
                 list.Add(new PeakSpec(new Vector2(x, z), a));
         }
         return list;
+    }
+
+    public static List<TrialSpec> LoadTrialsFromCsv(string csvPath)
+    {
+        var lines = File.ReadAllLines(csvPath);
+        var trials = new List<TrialSpec>();
+
+        if (lines.Length == 0) return trials;
+
+        int headerLineIndex = -1;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var ln = lines[i].Trim();
+            if (string.IsNullOrWhiteSpace(ln)) continue;
+            if (ln.StartsWith("#")) continue;
+            headerLineIndex = i;
+            break;
+        }
+
+        if (headerLineIndex < 0) return trials;
+
+        var header = SplitCsvLine(lines[headerLineIndex]).Select(h => h.Trim().Trim('"')).ToList();
+        int Col(string name) => header.FindIndex(h => string.Equals(h, name, StringComparison.OrdinalIgnoreCase));
+
+        int cMapType = Col("MapType");
+        int cSpawnX = Col("SpawnX");
+        int cSpawnZ = Col("SpawnZ");
+        int cCenterX = Col("CenterX");
+        int cCenterZ = Col("CenterZ");
+        int cGoals = Col("Goals");
+        int cPeaks = Col("Peaks");
+        int cSigma = Col("Sigma");
+
+        if (cMapType < 0 || cSpawnX < 0 || cSpawnZ < 0)
+            throw new Exception("CSV missing required columns.");
+
+        for (int i = headerLineIndex + 1; i < lines.Length; i++)
+        {
+            string ln = lines[i].Trim();
+            if (string.IsNullOrWhiteSpace(ln) || ln.StartsWith("#")) continue;
+
+            var cells = SplitCsvLine(lines[i]);
+            string Get(int col) => (col < 0 || col >= cells.Count) ? "" : cells[col];
+
+            int mapType = ParseMapTypeIndex(Get(cMapType));
+            if (!TryParseFloat(Get(cSpawnX), out float sx) || !TryParseFloat(Get(cSpawnZ), out float sz)) continue;
+
+            float cx = 0f, cz = 0f;
+            TryParseFloat(Get(cCenterX), out cx);
+            TryParseFloat(Get(cCenterZ), out cz);
+
+            var goals = ParseVector2List(Get(cGoals));
+            Vector2? goalOverride = (goals.Count > 0) ? goals[0] : (Vector2?)null;
+
+            var peaks = ParsePeakList(Get(cPeaks));
+
+            if (mapType == 3 && (peaks == null || peaks.Count == 0))
+            {
+                Debug.LogWarning($"Skipping line {i + 1}: Multi-Peak requires Peaks.");
+                continue;
+            }
+
+            float? sigmaOverride = null;
+            if (cSigma >= 0 && TryParseFloat(Get(cSigma), out float sVal))
+            {
+                sigmaOverride = sVal;
+            }
+
+            trials.Add(new TrialSpec
+            {
+                MapTypeIndex = mapType,
+                SpawnXZ = new Vector2(sx, sz),
+                CenterXZ = new Vector2(cx, cz),
+                GoalOverride = goalOverride,
+                ExtraGoals = (goals.Count > 1) ? goals.Skip(1).ToList() : new List<Vector2>(),
+                Peaks = peaks,
+                SigmaOverride = sigmaOverride // NEW: Assign the value
+            });
+        }
+        return trials;
+    }
+
+    public static void SaveTrialsToCsv(string path, List<TrialSpec> trials)
+    {
+        var sb = new StringBuilder();
+
+        // Header
+        sb.AppendLine("MapType,SpawnX,SpawnZ,CenterX,CenterZ,Goals,Peaks,Sigma");
+
+        foreach (var t in trials)
+        {
+            // Map Type
+            string typeStr = StimulusManager.MapTypes[Mathf.Clamp(t.MapTypeIndex, 0, StimulusManager.MapTypes.Count - 1)];
+
+            // Goals: "x z | x z"
+            string goalsStr = "";
+            if (t.GoalOverride.HasValue)
+            {
+                goalsStr = $"{t.GoalOverride.Value.x:F2} {t.GoalOverride.Value.y:F2}";
+                foreach (var extra in t.ExtraGoals)
+                    goalsStr += $" | {extra.x:F2} {extra.y:F2}";
+            }
+
+            // Peaks: "x z amp | x z amp"
+            string peaksStr = "";
+            if (t.Peaks != null)
+            {
+                var pList = new List<string>();
+                foreach (var p in t.Peaks)
+                    pList.Add($"{p.Position.x:F2} {p.Position.y:F2} {p.Amplitude:F2}");
+                peaksStr = string.Join("|", pList); // Note: Pipe separator
+            }
+
+            // Sigma
+            string sigmaStr = t.SigmaOverride.HasValue ? t.SigmaOverride.Value.ToString("F2") : "";
+
+            // Construct Line
+            // Note: We use CenterXZ.x and CenterXZ.y (mapped to Z in world)
+            sb.AppendLine($"{typeStr},{t.SpawnXZ.x:F2},{t.SpawnXZ.y:F2},{t.CenterXZ.x:F2},{t.CenterXZ.y:F2},{goalsStr},{peaksStr},{sigmaStr}");
+        }
+
+        File.WriteAllText(path, sb.ToString());
+        Debug.Log($"Saved {trials.Count} trials to {path}");
     }
 }

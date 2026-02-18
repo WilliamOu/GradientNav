@@ -44,30 +44,30 @@ public class Map3DVisualizer : MonoBehaviour
 
     private void GenerateMesh()
     {
-        // 1. Create the GameObject that holds the mesh
+        // Create the GameObject that holds the mesh
         _visualizationObj = new GameObject("Generated_Stimulus_Mesh");
         _visualizationObj.transform.SetParent(this.transform, false);
 
-        // 2. Add components
+        // Add components
         _meshFilter = _visualizationObj.AddComponent<MeshFilter>();
         _meshRenderer = _visualizationObj.AddComponent<MeshRenderer>();
 
-        // 3. Assign Material (Critical for seeing colors)
+        // Assign Material (Critical for seeing colors)
         if (meshMaterial != null)
             _meshRenderer.material = meshMaterial;
         else
             // Fallback to a default that usually supports vertex colors
             _meshRenderer.material = new Material(Shader.Find("Particles/Standard Surface"));
 
-        // 4. initialize mesh
+        // Initialize mesh
         _mesh = new Mesh();
         _mesh.name = "StimulusHeightMap";
-        // utilizing 32-bit index buffer allows for meshes > 65k vertices
+        // Utilizing 32-bit index buffer allows for meshes > 65k vertices
         _mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 
         _meshFilter.mesh = _mesh;
 
-        // 5. Build the geometry
+        // Build the geometry
         UpdateMeshGeometry();
     }
 
@@ -75,7 +75,7 @@ public class Map3DVisualizer : MonoBehaviour
     {
         if (_mesh == null) return;
 
-        // --- A. Gather Settings ---
+        // Gather Settings
         float mapWidth = AppManager.Instance.Settings.MapWidth;
         float mapLength = AppManager.Instance.Settings.MapLength;
 
@@ -95,7 +95,7 @@ public class Map3DVisualizer : MonoBehaviour
             xRes = Mathf.RoundToInt(meshResolution * aspectRatio);
         }
 
-        // --- B. Generate Vertices & Colors ---
+        // Generate Vertices & Colors
         Vector3[] vertices = new Vector3[(xRes + 1) * (zRes + 1)];
         Color[] colors = new Color[vertices.Length];
         Vector2[] uvs = new Vector2[vertices.Length];
@@ -130,7 +130,7 @@ public class Map3DVisualizer : MonoBehaviour
             }
         }
 
-        // --- C. Generate Triangles ---
+        // Generate Triangles
         int[] triangles = new int[xRes * zRes * 6];
         int triIndex = 0;
 
@@ -160,7 +160,7 @@ public class Map3DVisualizer : MonoBehaviour
             }
         }
 
-        // --- D. Apply to Mesh ---
+        // Apply to Mesh
         _mesh.Clear();
         _mesh.vertices = vertices;
         _mesh.colors = colors;

@@ -42,7 +42,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         // Initialize the TrialManager (Loads CSV or preps Random Seed)
         AppManager.Instance.Trial.Init();
 
-        AppManager.Instance.Player.MapPlane.ToggleMap(true);
+        AppManager.Instance.MapVisualizer.ToggleMap(true);
 
         // Begin the experiment flow
         StartCoroutine(RunAllTrials());
@@ -160,7 +160,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
             AppManager.Instance.Session.MapType = StimulusManager.MapTypes[spec.MapTypeIndex];
             AppManager.Instance.Player.Minimap.RefreshMinimap();
-            AppManager.Instance.Player.MapPlane.UpdateMeshGeometry();
+            AppManager.Instance.MapVisualizer.UpdateMeshGeometry();
             AppManager.Instance.Session.TrialNumber = trialIndex + 1;
             AppManager.Instance.Session.SpawnPosition = startXZ;
             AppManager.Instance.Session.GoalPosition = targetXZ;

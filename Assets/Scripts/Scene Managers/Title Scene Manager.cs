@@ -41,6 +41,7 @@ public class TitleSceneManager : MonoBehaviour
     [SerializeField] private GameObject settingRowPrefab;
     [SerializeField] private UnityEngine.UI.Button VRStartButton;
     [SerializeField] private UnityEngine.UI.Button DesktopStartButton;
+    [SerializeField] private Button TrialCreationButton;
 
     private void Awake()
     {
@@ -55,6 +56,7 @@ public class TitleSceneManager : MonoBehaviour
         // Initialize Listeners
         ExitButton.onClick.AddListener(CloseApplication);
         FileLocationButton.onClick.AddListener(OpenPersistentDataPath);
+        TrialCreationButton.onClick.AddListener(LoadTrialCreationScene);
 
         SettingsButton.onClick.AddListener(() =>
         {
@@ -148,6 +150,11 @@ public class TitleSceneManager : MonoBehaviour
         // Store a normalized version (ensures leading zeros, etc.)
         normalizedDate = dt.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture);
         return true;
+    }
+
+    private void LoadTrialCreationScene()
+    {
+        SceneManager.LoadScene("Trial Creation Scene");
     }
 
     private void ParseSessionDataAndLoad(SessionDataManager.GameMode gameMode, SessionDataManager.SessionType sessionType)

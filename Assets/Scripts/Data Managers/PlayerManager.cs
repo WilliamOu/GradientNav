@@ -14,7 +14,6 @@ public class PlayerManager : MonoBehaviour
     public bool CanMove { get; private set; } = true;
     public bool CanLook { get; private set; } = true;
     public MinimapRenderer Minimap { get; private set; }
-    public Map3DVisualizer MapPlane { get; private set; }
 
     private GameObject vrPlayerPrefab;
     private GameObject desktopPlayerPrefab;
@@ -71,7 +70,6 @@ public class PlayerManager : MonoBehaviour
         }
 
         Minimap = newPlayer.GetComponentInChildren<MinimapRenderer>(true);
-        MapPlane = newPlayer.GetComponentInChildren<Map3DVisualizer>(true);
 
         if (!AppManager.Instance.Settings.ExperimentalMode && !AppManager.Instance.Session.IsVRMode)
         {

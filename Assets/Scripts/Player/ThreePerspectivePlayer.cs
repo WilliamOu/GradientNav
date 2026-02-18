@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using TMPro;
 using UnityEngine;
 
 public class ThreePerspectivePlayer : MonoBehaviour
@@ -18,6 +19,7 @@ public class ThreePerspectivePlayer : MonoBehaviour
     [SerializeField] private CharacterController controller;
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private bool UseEdgeScrolling = true;
+    [SerializeField] private TMP_Text ScreenLockText;
 
     private float forceOfGravity = -19.62f;
     private float jumpForce = 7f;
@@ -111,6 +113,7 @@ public class ThreePerspectivePlayer : MonoBehaviour
             // Unlock cursor for Menu interaction
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+            ScreenLockText.text = "[SCREEN LOCKED]";
         }
         else
         {
@@ -125,6 +128,7 @@ public class ThreePerspectivePlayer : MonoBehaviour
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
             }
+            ScreenLockText.text = "";
         }
 
         // Fire Event for external Listeners (UI, Data Loggers, etc)
