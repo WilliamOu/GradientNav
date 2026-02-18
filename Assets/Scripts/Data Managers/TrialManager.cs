@@ -76,6 +76,20 @@ public class TrialManager : MonoBehaviour
 
     public TrialSpec GetTrial(int trialIndex)
     {
+        if (trialIndex == -9999)
+        {
+            return new TrialSpec
+            {
+                MapTypeIndex = 0,
+                SpawnXZ = Vector2.zero,
+                CenterXZ = Vector2.zero,
+                GoalOverride = null,
+                ExtraGoals = new List<Vector2>(),
+                Peaks = null,
+                SigmaOverride = 2.0f
+            };
+        }
+
         if (CurrentPlanMode == TrialPlanMode.Csv)
         {
             return _csvTrials[trialIndex];

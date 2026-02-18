@@ -288,7 +288,7 @@ public class PlayerManager : MonoBehaviour
         Debug.Log($"Recenter Triggered: Moved Head to {x},{z} (Rig moved to {newRigPos})");
     }
 
-    public void UpdateStimulusUI()
+    public void UpdateStimulusUI(bool updateText = true)
     {
         if (!PlayerSpawned || activeUI == null) return;
 
@@ -300,7 +300,7 @@ public class PlayerManager : MonoBehaviour
             activeUI.GradientImage.color = c;
         }
 
-        if (!AppManager.Instance.Settings.ExperimentalMode) return;
+        if (!AppManager.Instance.Settings.ExperimentalMode || !updateText) return;
         if (activeUI.UIText != null && activeUI.UIText.gameObject.activeSelf)
         {
             int intensity255 = Mathf.RoundToInt(StimulusIntensity * 255f);

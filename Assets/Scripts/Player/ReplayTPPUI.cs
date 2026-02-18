@@ -37,7 +37,7 @@ public class ReplayTPPUI : MonoBehaviour
 
     private bool isDraggingSlider = false;
 
-    void OnEnable()
+    private void OnEnable()
     {
         if (playerController != null)
         {
@@ -45,7 +45,7 @@ public class ReplayTPPUI : MonoBehaviour
         }
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         if (playerController != null)
         {
@@ -53,7 +53,7 @@ public class ReplayTPPUI : MonoBehaviour
         }
     }
 
-    void Start()
+    private void Start()
     {
         // if (panel != null) panel.SetActive(true);
 
@@ -103,7 +103,7 @@ public class ReplayTPPUI : MonoBehaviour
             }
         }
 
-        // 3. Initial State Check
+        // Initial State Check
         if (playerController != null)
         {
             HandleFreeze(playerController.IsFrozen);
@@ -113,28 +113,34 @@ public class ReplayTPPUI : MonoBehaviour
         currentPlaybackSpeedText.text = "Speed: " + Mathf.Round(AppManager.Instance.Replay.PlaybackSpeed * 100f) / 100f + "x";
     }
 
-    void IncreasePlaybackSpeed()
+    private void IncreasePlaybackSpeed()
     {
         AppManager.Instance.Replay.IncreasePlaybackSpeed();
         currentPlaybackSpeedText.text = "Speed: " + Mathf.Round(AppManager.Instance.Replay.PlaybackSpeed * 100f) / 100f + "x";
     }
 
-    void DecreasePlaybackSpeed()
+    private void DecreasePlaybackSpeed()
     {
         AppManager.Instance.Replay.DecreasePlaybackSpeed();
         currentPlaybackSpeedText.text = "Speed: " + Mathf.Round(AppManager.Instance.Replay.PlaybackSpeed * 100f) / 100f + "x";
     }
 
-    void ToggleAutoAlign()
+    private void ToggleAutoAlign()
     {
         AppManager.Instance.Replay.ToggleAutoAlign();
         autoAlignText.text = AppManager.Instance.Replay.ContinuousAutoAlign ? "Auto Align: On" : "Auto Align: Off";
     }
 
-    void TriggerAutoAlign()
+    private void TriggerAutoAlign()
     {
         AppManager.Instance.Replay.CalculateAutoAlignYaw();
         AppManager.Instance.Replay.ApplyShadowRotation();
+    }
+
+    private void OnReturnToTitle()
+    {
+        AppManager.Instance.MapVisualizer.ToggleMap(false);
+        SceneManager.LoadScene("Title Scene");
     }
 
     void Update()
@@ -166,12 +172,6 @@ public class ReplayTPPUI : MonoBehaviour
     }
 
     // --- Callbacks ---
-
-    private void OnReturnToTitle()
-    {
-        // cleanup logic if needed
-        SceneManager.LoadScene(0); // Assuming Build Index 0 is Title
-    }
 
     private void OnSliderValueChanged(float value)
     {

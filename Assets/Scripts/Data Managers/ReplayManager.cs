@@ -68,7 +68,7 @@ public class ReplayManager : MonoBehaviour
     private bool isPlaying = false;
     private float currentTime = 0f;
     private float totalDuration = 0f;
-    private float frameStepSize = 0.033f; // Will be auto-calculated from Shadow frequency
+    private float frameStepSize = 0.033f;
 
     // --- Data Streamers ---
     private XriStreamer xriStream;
@@ -194,12 +194,12 @@ public class ReplayManager : MonoBehaviour
                 return;
             }
 
-            // 1. Open Streams & Build Indices
+            // Open Streams & Build Indices
             // This reads the whole file structure but skips the heavy data, building a map in RAM.
             xriStream = new XriStreamer(xriFiles[0]);
             shadowStream = new ShadowStreamer(shadowFiles[0]);
 
-            // 2. Sync Time Bases
+            // Sync Time Bases
             // We align both streams to the earliest timestamp found.
             long startTick = Math.Min(xriStream.StartTick, shadowStream.StartTick);
             long freq = shadowStream.Frequency; // Shadow usually has the reliable frequency
@@ -209,7 +209,7 @@ public class ReplayManager : MonoBehaviour
             xriStream.SetTiming(startTick, freq);
             shadowStream.SetTiming(startTick, freq);
 
-            // 3. Setup Duration & Steps
+            // Setup Duration & Steps
             totalDuration = Mathf.Max(xriStream.Duration, shadowStream.Duration);
 
             // Calculate a single "Frame" as the time between two shadow samples
@@ -218,7 +218,7 @@ public class ReplayManager : MonoBehaviour
 
             Debug.Log($"[Replay] Loaded. Duration: {totalDuration:F2}s. Frame Step: {frameStepSize:F4}s");
 
-            // 4. Spawn & Reset
+            // Spawn & Reset
             SpawnVisuals();
             SetTime(0f);
 
@@ -251,7 +251,7 @@ public class ReplayManager : MonoBehaviour
 
     private void EvaluateAtTime(float time)
     {
-        // 1. Evaluate Shadow (Body)
+        // Evaluate Shadow (Body)
         if (shadowStream != null)
         {
             // This function handles the file seeking and interpolation
@@ -276,7 +276,7 @@ public class ReplayManager : MonoBehaviour
             }
         }
 
-        // 2. Evaluate XRI (Headset/Controllers)
+        // Evaluate XRI (Headset/Controllers)
         if (xriStream != null)
         {
             var (a, b, t) = xriStream.GetFrame(time);
@@ -564,14 +564,14 @@ public class ReplayManager : MonoBehaviour
         {
             if (fileOffsets.Count == 0) return (frameA, frameA, 0);
 
-            // 1. Find the index for 'time'
+            // Find the index for 'time'
             int index = timeStamps.BinarySearch(time);
             if (index < 0) index = ~index - 1;
             if (index < 0) index = 0;
             if (index >= fileOffsets.Count - 1) index = fileOffsets.Count - 2;
             if (index < 0) index = 0; // fallback if only 1 frame
 
-            // 2. Do we need to read from disk?
+            // Do we need to read from disk?
             // If we are already at this index, don't re-read
             if (index != lastReadIndex)
             {
@@ -580,7 +580,7 @@ public class ReplayManager : MonoBehaviour
                 lastReadIndex = index;
             }
 
-            // 3. Interpolate
+            // Interpolate
             float t = 0f;
             float duration = frameB.Time - frameA.Time;
             if (duration > 1e-5f)

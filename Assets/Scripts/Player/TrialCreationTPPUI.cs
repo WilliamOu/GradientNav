@@ -44,13 +44,17 @@ public class TrialCreationTPPUI : MonoBehaviour
     [SerializeField] private TMP_InputField peakCountGenInput; // For random gen
     [SerializeField] private Button generatePeaksBtn;
 
+    [Header("Settings")]
+    [SerializeField] private Button toggleMapBoundsBtn;
+    private bool mapBoundsToggled = false;
+
     // Internal State
     private List<TrialSpec> currentTrials = new List<TrialSpec>();
     private string currentFilePath;
     private int activeTrialIndex = -1;
     private bool uiIsUpdating = false; // Prevent infinite loops
 
-    void OnEnable()
+    private void OnEnable()
     {
         if (playerController != null)
         {
@@ -58,7 +62,7 @@ public class TrialCreationTPPUI : MonoBehaviour
         }
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         if (playerController != null)
         {
@@ -66,7 +70,7 @@ public class TrialCreationTPPUI : MonoBehaviour
         }
     }
 
-    void Start()
+    private void Start()
     {
         if (panel != null) panel.SetActive(true);
 
@@ -94,6 +98,8 @@ public class TrialCreationTPPUI : MonoBehaviour
         centerInput.onEndEdit.AddListener(_ => PushUiToData());
         peaksInput.onEndEdit.AddListener(_ => PushUiToData());
 
+        toggleMapBoundsBtn.onClick.AddListener(ToggleMapBounds);
+
         if (playerController != null)
         {
             // Subscribe
@@ -105,7 +111,7 @@ public class TrialCreationTPPUI : MonoBehaviour
         AppManager.Instance.MapVisualizer.ToggleMap(true);
     }
 
-    void OnDestroy()
+    private void OnDestroy()
     {
         if (playerController != null) playerController.OnFreezeStateChanged -= HandleFreeze;
     }
@@ -247,6 +253,21 @@ public class TrialCreationTPPUI : MonoBehaviour
     {
         SaveCurrentFile();
         ReturnToTitle();
+    }
+
+    private void ToggleMapBounds()
+    {
+        mapBoundsToggled = !mapBoundsToggled;
+        if (mapBoundsToggled)
+        {
+            AppManager.Instance.MapVisualizer.UpdateMeshGeometry();
+        }
+        else
+        {
+            float mapWidth = Mathf.Max(100, AppManager.Instance.Settings.MapWidth * 10);
+            float mapLength = Mathf.Max(100, AppManager.Instance.Settings.MapLength * 10);
+            AppManager.Instance.MapVisualizer.UpdateMeshGeometry(mapWidth, mapLength);
+        }
     }
 
     // Trial Management

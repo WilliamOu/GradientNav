@@ -2,6 +2,7 @@ using System.Collections;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using static UnityEngine.GraphicsBuffer;
 
 public class GradientNavigationSceneManager : MonoBehaviour
 {
@@ -26,6 +27,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     // State flags
     private bool allowTrainingPause = false;
+    private bool allowTrainingGradientUpdate = false;
     private bool allowRecenter = true;
 
     private void Start()
@@ -76,9 +78,16 @@ public class GradientNavigationSceneManager : MonoBehaviour
             AppManager.Instance.Player.TeleportVRToCoordinates(0, 0);
         }
 
-        // Game Logic (Only runs during Active Trial)
-        if (state != SessionDataManager.GameState.Trial) return;
+        if (state != SessionDataManager.GameState.Trial)
+        {
+            // For the gradient update in the tutorial
+            if (allowTrainingGradientUpdate)
+                AppManager.Instance.Player.UpdateStimulusUI(false);
 
+            return;
+        }
+
+        // Game Logic
         AppManager.Instance.Player.UpdateStimulusUI();
 
         // Timer
@@ -201,24 +210,47 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
         AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
         // Wait for Administrator
-        AppManager.Instance.Player.SetUIMessage("[TRAINING]\nPlease wait as the study administrator provides an orientation.", Color.white, -1);
-        yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.Return));
+        if (!AppManager.Instance.Settings.ExperimentalMode)
+        {
+            AppManager.Instance.Player.SetUIMessage("[TRAINING]\nPlease wait as the study administrator provides study orientation.", Color.white, -1);
+            yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.Return));
+        }
 
         // Brightness explanation
+        // Here the participant will be moved around by the administrator
+        AppManager.Instance.Player.DisableBlackscreen();
+        allowTrainingGradientUpdate = true;
+        TrialSpec spec = AppManager.Instance.Trial.GetTrial(-9999); // Outputs a default Gaussian spec
+        AppManager.Instance.Stimulus.GenerateMap(
+            spec.MapTypeIndex,
+            AppManager.Instance.Settings.MapWidth,
+            AppManager.Instance.Settings.MapLength,
+            spec.CenterXZ,
+            goalOverride: spec.GoalOverride,
+            multiPeakSpecs: spec.Peaks,
+            sigmaOverride: spec.SigmaOverride
+        );
+        AppManager.Instance.Session.MapType = StimulusManager.MapTypes[spec.MapTypeIndex];
+        AppManager.Instance.Player.Minimap.RefreshMinimap();
+        AppManager.Instance.Session.SpawnPosition = spec.SpawnXZ;
+        AppManager.Instance.Session.GoalPosition = spec.CenterXZ;
+
         string msg = $"The brightness of the screen will change as you move around the scene." +
                      $"\n(Press either trigger key to continue)";
-        AppManager.Instance.Player.SetUIMessage(msg, Color.white, -1);
+        AppManager.Instance.Player.SetUIMessage(msg, Color.magenta, -1);
         yield return WaitForAnyTrigger();
 
         msg = $"When you think you are at the point of maximum brightness, press the trigger key on either of your controllers." +
               $"\n(Press either trigger key to continue)";
-        AppManager.Instance.Player.SetUIMessage(msg, Color.white, -1);
+        AppManager.Instance.Player.SetUIMessage(msg, Color.magenta, -1);
         yield return WaitForAnyTrigger();
 
         msg = $"You will be given {AppManager.Instance.Settings.ParticipantMaxTestCount} attempt(s) to find the point of maximum brightness." +
               $"\n(Press either trigger key to continue)";
-        AppManager.Instance.Player.SetUIMessage(msg, Color.white, -1);
+        AppManager.Instance.Player.SetUIMessage(msg, Color.magenta, -1);
         yield return WaitForAnyTrigger();
+        allowTrainingGradientUpdate = false;
+        AppManager.Instance.Player.EnableBlackscreen();
 
         // Pillar Explanation
         AppManager.Instance.Player.SetUIMessage("At the beginning of each trial, you will be asked to walk to a location, as specified by a red pillar.\n(Press either trigger key to continue)", Color.white, -1);

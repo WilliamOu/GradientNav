@@ -70,13 +70,13 @@ public class Map3DVisualizer : MonoBehaviour
         UpdateMeshGeometry();
     }
 
-    public void UpdateMeshGeometry()
+    public void UpdateMeshGeometry(float mapWidth = -1, float mapLength = -1)
     {
         if (mesh == null) return;
 
         // Gather Settings
-        float mapWidth = AppManager.Instance.Settings.MapWidth;
-        float mapLength = AppManager.Instance.Settings.MapLength;
+        mapWidth = (mapWidth == -1) ? AppManager.Instance.Settings.MapWidth : mapWidth;
+        mapLength = (mapLength == -1) ? AppManager.Instance.Settings.MapLength : mapLength;
 
         // Determine step size to keep quads square-ish
         // We use the same resolution for the longest side

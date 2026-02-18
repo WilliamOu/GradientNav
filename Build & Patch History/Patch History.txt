@@ -2,6 +2,12 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.5.0 - Feb 17, 2026
+- Added a back button to the Replay Scene to return to the Title Scene.
+- Added the ability to toggle map boundaries in the Trial Creation Scene.
+- Added a gradient visualization tool in the training phase. 
+- Adjusted the administrator wait trigger in the training phase to not trigger in Experimental Mode.
+
 Version 1.0.4.0 - Feb 17, 2026
 - Adjusted the Replay Manager to use an index system rather than loading the entirety of the bin files into RAM.
 - Added a UI to the replay system.
