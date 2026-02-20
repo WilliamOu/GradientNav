@@ -643,10 +643,19 @@ public class ReplayManager : MonoBehaviour
 
         protected override void ReadHeader()
         {
-            br.ReadInt32(); // Version
-            br.ReadInt32(); // Magic
-            br.ReadInt32(); // Count
-            hasState = (br.ReadByte() & 1) != 0;
+            int magic = br.ReadInt32();
+            int version = br.ReadInt32();
+            int count = br.ReadInt32();
+            byte flags = br.ReadByte();
+
+            Debug.Log($"[XRI Header] magic=0x{magic:X8} version={version} count={count} flags=0x{flags:X2}");
+
+            if (magic != XriBinMagic)
+                throw new InvalidDataException($"Bad XRI magic. Expected 0x{XriBinMagic:X8}, got 0x{magic:X8}");
+            if (version != XriBinVersion)
+                Debug.LogError($"XRI version mismatch. Expected {XriBinVersion}, got {version}");
+
+            hasState = (flags & 1) != 0;
         }
 
         protected override void SkipFramePayload()
@@ -673,10 +682,19 @@ public class ReplayManager : MonoBehaviour
 
         protected override void ReadFramePayload(XriFrame f)
         {
-            // Ticks read by Base.
             f.State = hasState ? br.ReadByte() : (byte)0;
 
-            // --- NEW: Read Metadata ---
+            long posBeforeTrial = fs.Position;
+            byte[] trialBytes = br.ReadBytes(4);
+            int trialAsInt = BitConverter.ToInt32(trialBytes, 0);
+
+            // Now read stimulus as your code would
+            float stim = br.ReadSingle();
+
+            Debug.Log($"[XRI TrialBytes] pos=0x{posBeforeTrial:X} bytes={trialBytes[0]:X2} {trialBytes[1]:X2} {trialBytes[2]:X2} {trialBytes[3]:X2} trial={trialAsInt} stim={stim}");
+
+            // Rewind and continue normal parsing exactly as before
+            fs.Position = posBeforeTrial;
             f.TrialNum = br.ReadInt32();
             f.Stimulus = br.ReadSingle();
             f.SpawnPos = new Vector3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());

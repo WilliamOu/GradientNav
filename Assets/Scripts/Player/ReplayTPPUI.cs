@@ -281,9 +281,9 @@ public class ReplayTPPUI : MonoBehaviour
         }
 
         int currentTrial = closestFrame.TrialNum;
-        if (currentTrial != lastTrial && trialsValid)
+        if (currentTrial != lastTrial && trialsValid && currentTrial > 0 && currentTrial <= trialSpecs.Count)
         {
-            TrialSpec spec = trialSpecs[currentTrial];
+            TrialSpec spec = trialSpecs[currentTrial - 1];
 
             AppManager.Instance.Stimulus.GenerateMap(
                 spec.MapTypeIndex,

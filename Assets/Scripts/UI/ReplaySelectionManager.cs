@@ -178,7 +178,7 @@ public sealed class ReplaySelectionManager : MonoBehaviour
         int idxState = map.ContainsKey(keys.State) ? map[keys.State] : -1;
 
         // Study Metadata Columns
-        int idxTrial = map.ContainsKey("TrialNum") ? map["TrialNum"] : -1;
+        int idxTrial = map.ContainsKey("TrialNumber") ? map["TrialNumber"] : -1;
         int idxStim = map.ContainsKey("StimulusIntensity") ? map["StimulusIntensity"] : -1;
         int idxSpawnX = map.ContainsKey("SpawnX") ? map["SpawnX"] : -1;
         int idxSpawnZ = map.ContainsKey("SpawnZ") ? map["SpawnZ"] : -1;
@@ -215,8 +215,8 @@ public sealed class ReplaySelectionManager : MonoBehaviour
 
                 if (idxState >= 0) bw.Write(EncodeState(cols[idxState]));
 
-                // --- NEW: Write Study Metadata ---
-                int trialNum = idxTrial >= 0 && int.TryParse(cols[idxTrial], out int t) ? t : 0;
+                // Write Study Metadata
+                int trialNum = idxTrial >= 0 && int.TryParse(cols[idxTrial], out int t) ? t : -1;
                 float stim = idxStim >= 0 && float.TryParse(cols[idxStim], out float s) ? s : 0f;
                 float spX = idxSpawnX >= 0 && float.TryParse(cols[idxSpawnX], out float sx) ? sx : 0f;
                 float spZ = idxSpawnZ >= 0 && float.TryParse(cols[idxSpawnZ], out float sz) ? sz : 0f;

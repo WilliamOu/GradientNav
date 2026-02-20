@@ -2,6 +2,11 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.6.3 - Feb 20, 2026
+- Added header validation to the replay system. 
+- Fixed an issue where the Trial was erronously reading 0 due to improper header reading.
+- Fixed an off-by-one error in the Trial construction in the replay system. 
+
 Version 1.0.6.2 - Feb 20, 2026
 - Disabled shadows on Replay scene elements.
 
