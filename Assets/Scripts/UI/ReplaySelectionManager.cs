@@ -15,7 +15,7 @@ public sealed class ReplaySelectionManager : MonoBehaviour
     private const string XriBinSuffix = "_XRI.bin";
     private const string ShadowBinSuffix = "_Shadow.bin";
 
-    // Binary Device Type IDs (The "Limb Labeling")
+    // Binary Device Type IDs
     private const byte DeviceId_Head = 0;
     private const byte DeviceId_LeftHand = 1;
     private const byte DeviceId_RightHand = 2;
@@ -157,7 +157,6 @@ public sealed class ReplaySelectionManager : MonoBehaviour
         using var fs = new FileStream(outBinPath, FileMode.Create, FileAccess.Write);
         using var bw = new BinaryWriter(fs);
 
-        // FIX: Use LOCAL constants, don't rely on ReplayManager being compiled/public yet
         bw.Write(ReplayManager.XriBinMagic);
         bw.Write(ReplayManager.XriBinVersion);
 
@@ -168,16 +167,23 @@ public sealed class ReplaySelectionManager : MonoBehaviour
         string headerLine = sr.ReadLine();
         if (headerLine == null) throw new Exception("Empty CSV");
 
-        // USE NEW ROBUST SPLIT
         var headers = SplitCsvLine(headerLine);
         var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < headers.Length; i++) map[headers[i].Trim()] = i;
 
         var keys = new ColumnKeys();
 
-        // Check required columns
+        // Core columns
         int idxTicks = RequireCol(map, keys.StopwatchTicks);
         int idxState = map.ContainsKey(keys.State) ? map[keys.State] : -1;
+
+        // Study Metadata Columns
+        int idxTrial = map.ContainsKey("TrialNum") ? map["TrialNum"] : -1;
+        int idxStim = map.ContainsKey("StimulusIntensity") ? map["StimulusIntensity"] : -1;
+        int idxSpawnX = map.ContainsKey("SpawnX") ? map["SpawnX"] : -1;
+        int idxSpawnZ = map.ContainsKey("SpawnZ") ? map["SpawnZ"] : -1;
+        int idxGoalX = map.ContainsKey("GoalX") ? map["GoalX"] : -1;
+        int idxGoalZ = map.ContainsKey("GoalZ") ? map["GoalZ"] : -1;
 
         // Poses
         PoseCols head = GetPoseCols(map, keys.HeadX, keys.HeadY, keys.HeadZ, keys.HeadRotX, keys.HeadRotY, keys.HeadRotZ);
@@ -207,18 +213,29 @@ public sealed class ReplaySelectionManager : MonoBehaviour
             {
                 bw.Write(ticks);
 
-                if (idxState >= 0)
-                    bw.Write(EncodeState(cols[idxState]));
+                if (idxState >= 0) bw.Write(EncodeState(cols[idxState]));
 
-                // Write Poses with ID tags ("Which limb is limb")
-                bw.Write(DeviceId_Head);
-                WritePoseFromEuler(bw, cols, head);
+                // --- NEW: Write Study Metadata ---
+                int trialNum = idxTrial >= 0 && int.TryParse(cols[idxTrial], out int t) ? t : 0;
+                float stim = idxStim >= 0 && float.TryParse(cols[idxStim], out float s) ? s : 0f;
+                float spX = idxSpawnX >= 0 && float.TryParse(cols[idxSpawnX], out float sx) ? sx : 0f;
+                float spZ = idxSpawnZ >= 0 && float.TryParse(cols[idxSpawnZ], out float sz) ? sz : 0f;
+                float glX = idxGoalX >= 0 && float.TryParse(cols[idxGoalX], out float gx) ? gx : 0f;
+                float glZ = idxGoalZ >= 0 && float.TryParse(cols[idxGoalZ], out float gz) ? gz : 0f;
 
-                bw.Write(DeviceId_LeftHand);
-                WritePoseFromEuler(bw, cols, lHand);
+                bw.Write(trialNum); // 4 bytes
+                bw.Write(stim);     // 4 bytes
 
-                bw.Write(DeviceId_RightHand);
-                WritePoseFromEuler(bw, cols, rHand);
+                // Write Spawn as Vector3 (12 bytes)
+                bw.Write(spX); bw.Write(0f); bw.Write(spZ);
+                // Write Goal as Vector3 (12 bytes)
+                bw.Write(glX); bw.Write(0f); bw.Write(glZ);
+                // ---------------------------------
+
+                // Write Poses
+                bw.Write(DeviceId_Head); WritePoseFromEuler(bw, cols, head);
+                bw.Write(DeviceId_LeftHand); WritePoseFromEuler(bw, cols, lHand);
+                bw.Write(DeviceId_RightHand); WritePoseFromEuler(bw, cols, rHand);
 
                 // Write Gaze
                 bw.Write(DeviceId_Gaze);
@@ -232,7 +249,7 @@ public sealed class ReplaySelectionManager : MonoBehaviour
         fs.Position = countPos;
         bw.Write(frames);
 
-        if (verboseLogs) Debug.Log($"[Replay] Converted {frames} frames to binary with Gaze.");
+        if (verboseLogs) Debug.Log($"[Replay] Converted {frames} frames to binary with Metadata & Gaze.");
     }
 
     private struct PoseCols { public int x, y, z, rx, ry, rz; }
@@ -281,7 +298,7 @@ public sealed class ReplaySelectionManager : MonoBehaviour
 
     private static float ParseFloat(string s) => float.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out float v) ? v : 0f;
 
-    private static byte EncodeState(string s)
+    public static byte EncodeState(string s)
     {
         s = s.Trim().ToUpperInvariant();
         if (s.Contains("TRAINING")) return 0;
@@ -290,6 +307,16 @@ public sealed class ReplaySelectionManager : MonoBehaviour
         if (s.Contains("PAUSED")) return 3;
         if (s.Contains("TRIAL")) return 4;
         return 255;
+    }
+
+    public static string DecodeState(byte b)
+    {
+        if (b == 0) return "Training";
+        if (b == 1) return "Idle";
+        if (b == 2) return "Orient";
+        if (b == 3) return "Paused";
+        if (b == 4) return "Trial";
+        return "Unknown";
     }
 
     private static string[] SplitCsvLine(string line)

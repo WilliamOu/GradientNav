@@ -13,7 +13,6 @@ public class PlayerManager : MonoBehaviour
     public float StimulusIntensity { get; private set; } = -1f;
     public bool CanMove { get; private set; } = true;
     public bool CanLook { get; private set; } = true;
-    public MinimapRenderer Minimap { get; private set; }
 
     private GameObject vrPlayerPrefab;
     private GameObject desktopPlayerPrefab;
@@ -67,13 +66,6 @@ public class PlayerManager : MonoBehaviour
                 activeUI.CController.enabled = false;
                 activeUI.ContinuousMoveProvider.enabled = false;
             }
-        }
-
-        Minimap = newPlayer.GetComponentInChildren<MinimapRenderer>(true);
-
-        if (!AppManager.Instance.Settings.ExperimentalMode && !AppManager.Instance.Session.IsVRMode)
-        {
-            Minimap.gameObject.SetActive(false);
         }
 
         if (activeUI == null)
@@ -259,7 +251,7 @@ public class PlayerManager : MonoBehaviour
         return activeUI != null ? activeUI.PlayerCamera.transform : null;
     }
 
-    public void TeleportVRToCoordinates(float x, float z)
+    public void TeleportVRToCoordinates(float x, float z, bool alignRotation = false)
     {
         if (teleportationProvider == null || activeUI.PlayerCamera == null || xrOrigin == null)
         {
@@ -267,25 +259,40 @@ public class PlayerManager : MonoBehaviour
             return;
         }
 
-        Vector3 rigPos = xrOrigin.position;
-        Vector3 headPos = activeUI.PlayerCamera.transform.position;
+        Transform headCamera = activeUI.PlayerCamera.transform;
 
-        Vector3 headOffsetFromRig = headPos - rigPos;
-        headOffsetFromRig.y = 0; // Flatten (we don't want to mess with floor height)
+        Quaternion targetRigRotation = xrOrigin.rotation;
+        MatchOrientation matchMode = MatchOrientation.None;
 
-        Vector3 targetWorldPos = new Vector3(x, rigPos.y, z);
-        Vector3 newRigPos = targetWorldPos - headOffsetFromRig;
+        if (alignRotation)
+        {
+            float headYaw = headCamera.eulerAngles.y;
+            float rigYaw = xrOrigin.eulerAngles.y;
+            float yawDifference = headYaw - rigYaw;
+
+            targetRigRotation = Quaternion.Euler(0, -yawDifference, 0);
+            matchMode = MatchOrientation.WorldSpaceUp;
+        }
+
+        Vector3 targetWorldPos = new Vector3(x, xrOrigin.position.y, z);
+
+        Vector3 localHeadOffset = xrOrigin.InverseTransformPoint(headCamera.position);
+        localHeadOffset.y = 0;
+
+        Vector3 futureWorldOffset = targetRigRotation * localHeadOffset;
+
+        Vector3 newRigPos = targetWorldPos - futureWorldOffset;
 
         TeleportRequest request = new TeleportRequest()
         {
             destinationPosition = newRigPos,
-            destinationRotation = Quaternion.identity, // Resets rotation to face World Forward (Z+)
-            matchOrientation = MatchOrientation.None
+            destinationRotation = targetRigRotation,
+            matchOrientation = matchMode
         };
 
         teleportationProvider.QueueTeleportRequest(request);
 
-        Debug.Log($"Recenter Triggered: Moved Head to {x},{z} (Rig moved to {newRigPos})");
+        Debug.Log($"Recenter Triggered: Head to {x},{z} | Rotation Aligned: {alignRotation}");
     }
 
     public void UpdateStimulusUI(bool updateText = true)

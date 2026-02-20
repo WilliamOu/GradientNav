@@ -1,13 +1,14 @@
-using UnityEngine;
-using UnityEngine.UI; // For standard UI
-using TMPro;          // Assuming TextMeshPro for modern UI
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using UnityEngine.SceneManagement;
 using System.Text.RegularExpressions;
+using TMPro;          // Assuming TextMeshPro for modern UI
 using Unity.VisualScripting;
+using UnityEditor.Experimental.GraphView;
+using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI; // For standard UI
 
 public class TrialCreationTPPUI : MonoBehaviour
 {
@@ -72,6 +73,7 @@ public class TrialCreationTPPUI : MonoBehaviour
 
     private void Start()
     {
+        AppManager.Instance.Utilities.Minimap.gameObject.SetActive(false);
         if (panel != null) panel.SetActive(true);
 
         RefreshFileList();
@@ -108,7 +110,7 @@ public class TrialCreationTPPUI : MonoBehaviour
             HandleFreeze(playerController.IsFrozen);
         }
         // if (panel != null) panel.SetActive(false);
-        AppManager.Instance.MapVisualizer.ToggleMap(true);
+        AppManager.Instance.Utilities.MapVisualizer.ToggleMap(true);
     }
 
     private void OnDestroy()
@@ -245,7 +247,7 @@ public class TrialCreationTPPUI : MonoBehaviour
 
     private void ReturnToTitle()
     {
-        AppManager.Instance.MapVisualizer.ToggleMap(false);
+        AppManager.Instance.Utilities.MapVisualizer.ToggleMap(false);
         SceneManager.LoadScene("Title Scene");
     }
 
@@ -260,13 +262,13 @@ public class TrialCreationTPPUI : MonoBehaviour
         mapBoundsToggled = !mapBoundsToggled;
         if (mapBoundsToggled)
         {
-            AppManager.Instance.MapVisualizer.UpdateMeshGeometry();
+            AppManager.Instance.Utilities.MapVisualizer.UpdateMeshGeometry();
         }
         else
         {
             float mapWidth = Mathf.Max(100, AppManager.Instance.Settings.MapWidth * 10);
             float mapLength = Mathf.Max(100, AppManager.Instance.Settings.MapLength * 10);
-            AppManager.Instance.MapVisualizer.UpdateMeshGeometry(mapWidth, mapLength);
+            AppManager.Instance.Utilities.MapVisualizer.UpdateMeshGeometry(mapWidth, mapLength);
         }
     }
 
@@ -325,7 +327,7 @@ public class TrialCreationTPPUI : MonoBehaviour
         SelectTrial(currentTrials.Count - 1);
     }
 
-    // --- 4. Data Binding (Spec <-> UI) ---
+    // Data Binding (Spec <-> UI)
     private void PopulateUI(TrialSpec spec)
     {
         uiIsUpdating = true;
@@ -431,7 +433,7 @@ public class TrialCreationTPPUI : MonoBehaviour
         Update3DPreview();
     }
 
-    // --- 5. Visualization ---
+    // Visualization
     private void Update3DPreview()
     {
         if (activeTrialIndex < 0) return;
@@ -457,7 +459,7 @@ public class TrialCreationTPPUI : MonoBehaviour
         );
 
         // Now tell the visualizer to redraw the mesh
-        AppManager.Instance.MapVisualizer.UpdateMeshGeometry();
+        AppManager.Instance.Utilities.MapVisualizer.UpdateMeshGeometry();
     }
 
     // Helper

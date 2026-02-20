@@ -2,6 +2,15 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.6.0 - Feb 20, 2026
+- Moved the banners in the Title Scene and Closing Scene closer to the player to make text more legible.
+- Disabled controller movement in the Title Scene.
+- Added an option to adjust rotation when teleporting. 
+- Adjusted the Three Perspective Player to only use WASD movement (removed arrow key movement).
+- Added scene visualization to the Replay Scene.
+- Added keybind controls to the Replay UI. 
+- Adjusted the pause button text in the Replay UI to change depending on if the scene is paused or playing.
+
 Version 1.0.5.0 - Feb 17, 2026
 - Added a back button to the Replay Scene to return to the Title Scene.
 - Added the ability to toggle map boundaries in the Trial Creation Scene.

@@ -27,7 +27,7 @@ public class AppManager : MonoBehaviour
     public TrialManager Trial { get; private set; }
     public ShadowManager Shadow { get; private set; }
     public ReplayManager Replay { get; private set; }
-    public Map3DVisualizer MapVisualizer { get; private set; }
+    public UtilitiesManager Utilities { get; private set; }
 
     void Awake()
     {
@@ -37,7 +37,7 @@ public class AppManager : MonoBehaviour
 
         Settings = new SettingsManager();
         Session = new SessionDataManager();
-        Logger = new LogManager();
+        Logger = new LogManager();  
 
         Player = gameObject.AddComponent<PlayerManager>();
         Orientation = gameObject.AddComponent<OrientationManager>();
@@ -46,9 +46,10 @@ public class AppManager : MonoBehaviour
         Shadow = gameObject.AddComponent<ShadowManager>();
         Replay = gameObject.AddComponent<ReplayManager>();
 
+        Utilities = gameObject.AddComponent<UtilitiesManager>();
+
         Player.Init(vrPlayerPrefab, desktopPlayerPrefab);
         Orientation.Init(lookObjectPrefab, walkObjectPrefab);
         Replay.Init(shadowDotMaterial, xriProxyMaterial);
-        MapVisualizer = this.GetComponentInChildren<Map3DVisualizer>(true);
     }
 }

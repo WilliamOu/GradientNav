@@ -90,6 +90,12 @@ public class ReplayManager : MonoBehaviour
     public float MaxTime => totalDuration;
     public bool IsPlaying => isPlaying;
 
+    public (XriFrame frameA, XriFrame frameB, float t) GetCurrentXriFrames()
+    {
+        if (xriStream == null) return (null, null, 0f);
+        return xriStream.GetFrame(currentTime);
+    }
+
     public void TogglePlayPause()
     {
         isPlaying = !isPlaying;
@@ -122,6 +128,11 @@ public class ReplayManager : MonoBehaviour
         SetTime(currentTime - frameStepSize);
     }
 
+    public Transform GetXriHeadTransform()
+    {
+        return xriHead;
+    }
+
     public void SetTime(float time)
     {
         // Clamp and Set
@@ -139,6 +150,7 @@ public class ReplayManager : MonoBehaviour
     // --- Unity Events ---
 
     public void SetFolderPath(string folderPath) { loadedFolderPath = folderPath; }
+    public string GetFolderPath() { return loadedFolderPath; }
 
     public void Init(Material shadowDotMaterial, Material xriProxyMaterial)
     {
@@ -446,6 +458,15 @@ public class ReplayManager : MonoBehaviour
     {
         public long Ticks { get; set; }
         public float Time { get; set; }
+
+        // Metadata
+        public byte State;
+        public int TrialNum;
+        public float Stimulus;
+        public Vector3 SpawnPos;
+        public Vector3 GoalPos;
+
+        // Poses
         public Vector3 HeadPos, LPos, RPos;
         public Quaternion HeadRot, LRot, RRot;
         public Vector3 GazeOrigin, GazeDirection;
@@ -453,6 +474,10 @@ public class ReplayManager : MonoBehaviour
         public void CopyFrom(XriFrame o)
         {
             Ticks = o.Ticks; Time = o.Time;
+
+            State = o.State; TrialNum = o.TrialNum;
+            Stimulus = o.Stimulus; SpawnPos = o.SpawnPos; GoalPos = o.GoalPos;
+
             HeadPos = o.HeadPos; LPos = o.LPos; RPos = o.RPos;
             HeadRot = o.HeadRot; LRot = o.LRot; RRot = o.RRot;
             GazeOrigin = o.GazeOrigin; GazeDirection = o.GazeDirection;
@@ -611,7 +636,6 @@ public class ReplayManager : MonoBehaviour
         }
     }
 
-    // --- XRI Implementation ---
     public class XriStreamer : IndexedStreamer<XriFrame>
     {
         private bool hasState;
@@ -627,32 +651,36 @@ public class ReplayManager : MonoBehaviour
 
         protected override void SkipFramePayload()
         {
-            // Ticks already read.
-            if (hasState) fs.Seek(1, SeekOrigin.Current); // Skip state byte
+            // Ticks already read by Base.
+            if (hasState) fs.Seek(1, SeekOrigin.Current); // Skip State
 
+            // Skip Metadata
+            // TrialNum(4) + Stimulus(4) + Spawn(12) + Goal(12) = 32 bytes
+            fs.Seek(32, SeekOrigin.Current);
+
+            // Skip Devices
             for (int i = 0; i < 4; i++)
             {
                 byte id = br.ReadByte();
-                // Vector3 is 12 bytes
-                fs.Seek(12, SeekOrigin.Current);
+                fs.Seek(12, SeekOrigin.Current); // Skip Vector3
 
                 if (id == 3) // DevGaze
-                {
-                    // Gaze has another Vector3 (Dir)
-                    fs.Seek(12, SeekOrigin.Current);
-                }
+                    fs.Seek(12, SeekOrigin.Current); // Gaze Dir
                 else
-                {
-                    // Others have Quaternion (16 bytes)
-                    fs.Seek(16, SeekOrigin.Current);
-                }
+                    fs.Seek(16, SeekOrigin.Current); // Quaternion
             }
         }
 
         protected override void ReadFramePayload(XriFrame f)
         {
             // Ticks read by Base.
-            if (hasState) br.ReadByte();
+            f.State = hasState ? br.ReadByte() : (byte)0;
+
+            // --- NEW: Read Metadata ---
+            f.TrialNum = br.ReadInt32();
+            f.Stimulus = br.ReadSingle();
+            f.SpawnPos = new Vector3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
+            f.GoalPos = new Vector3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
 
             for (int i = 0; i < 4; i++)
             {

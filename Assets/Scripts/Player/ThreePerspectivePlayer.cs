@@ -137,8 +137,13 @@ public class ThreePerspectivePlayer : MonoBehaviour
 
     private void HandleMovement()
     {
-        float xDirection = Input.GetAxis("Horizontal");
-        float zDirection = Input.GetAxis("Vertical");
+        float xDirection = 0f;
+        float zDirection = 0f;
+
+        if (Input.GetKey(KeyCode.D)) xDirection += 1f;
+        if (Input.GetKey(KeyCode.A)) xDirection -= 1f;
+        if (Input.GetKey(KeyCode.W)) zDirection += 1f;
+        if (Input.GetKey(KeyCode.S)) zDirection -= 1f;
 
         // Edge scrolling logic
         if (UseEdgeScrolling && xDirection == 0f && zDirection == 0f && CurrentMode != Mode.FirstPerson)

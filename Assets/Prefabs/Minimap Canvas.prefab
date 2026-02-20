@@ -265,6 +265,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e75d2e493633a449b577f4a632d6d89, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  minimapObj: {fileID: 6602185670216881172}
   mapDisplay: {fileID: 289441737620125049}
   playerIcon: {fileID: 3346111495895108860}
   goalIcon: {fileID: 2385951842041319392}

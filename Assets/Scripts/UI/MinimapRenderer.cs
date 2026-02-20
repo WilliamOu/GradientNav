@@ -4,6 +4,7 @@ using UnityEngine.UI;
 public class MinimapRenderer : MonoBehaviour
 {
     [Header("UI References")]
+    [SerializeField] private GameObject minimapObj;
     [SerializeField] private RawImage mapDisplay;
     [SerializeField] private RectTransform playerIcon;
     [SerializeField] private RectTransform goalIcon;
@@ -28,6 +29,11 @@ public class MinimapRenderer : MonoBehaviour
             new GradientColorKey[] { new GradientColorKey(Color.black, 0.0f), new GradientColorKey(Color.white, 1.0f) },
             new GradientAlphaKey[] { new GradientAlphaKey(1.0f, 0.0f), new GradientAlphaKey(1.0f, 1.0f) }
         );
+    }
+
+    public void ToggleMinimap(bool toggle)
+    {
+        minimapObj.gameObject.SetActive(toggle);
     }
 
     public void RefreshMinimap()
@@ -74,12 +80,11 @@ public class MinimapRenderer : MonoBehaviour
         }
     }
 
-    public void ManualUpdate()
+    public void ManualUpdate(Transform playerTransform = null)
     {
-        if (!AppManager.Instance.Session.IsVRMode && !AppManager.Instance.Settings.ExperimentalMode) return;
         if (playerIcon == null) return;
 
-        Transform playerTransform = AppManager.Instance.Player.CameraPosition();
+        playerTransform = (playerTransform == null) ? AppManager.Instance.Player.CameraPosition() : playerTransform;
 
         Vector3 camPos = playerTransform.position;
         Vector2 playerXZ = new Vector2(camPos.x, camPos.z);

@@ -1,8 +1,7 @@
 using System.Collections;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using static UnityEngine.GraphicsBuffer;
+using System.Collections.Generic;
 
 public class GradientNavigationSceneManager : MonoBehaviour
 {
@@ -29,9 +28,14 @@ public class GradientNavigationSceneManager : MonoBehaviour
     private bool allowTrainingPause = false;
     private bool allowTrainingGradientUpdate = false;
     private bool allowRecenter = true;
+    private List<TrialSpec> specList = new List<TrialSpec>();
 
     private void Start()
     {
+        // AppManager.Instance.Utilities.MapVisualizer.ToggleMap(true);
+        if (AppManager.Instance.Settings.ExperimentalMode || AppManager.Instance.Session.IsVRMode)
+            AppManager.Instance.Utilities.Minimap.gameObject.SetActive(true);
+
         SetState(SessionDataManager.GameState.Idle);
 
         // Spawn the player at origin initially
@@ -39,8 +43,6 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
         // Initialize the TrialManager (Loads CSV or preps Random Seed)
         AppManager.Instance.Trial.Init();
-
-        AppManager.Instance.MapVisualizer.ToggleMap(true);
 
         // Begin the experiment flow
         StartCoroutine(RunAllTrials());
@@ -55,7 +57,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
         // Always update passive systems
         AppManager.Instance.Logger.ManualUpdate();
         AppManager.Instance.Shadow.ManualUpdate();
-        AppManager.Instance.Player.Minimap.ManualUpdate();
+        if (AppManager.Instance.Session.IsVRMode || AppManager.Instance.Settings.ExperimentalMode) 
+            AppManager.Instance.Utilities.Minimap.ManualUpdate();
 
         // Input: Pause / Unpause
         if (GetPauseToggleInput())
@@ -75,7 +78,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         // Input: VR Recenter (Available generally if VR)
         if (AppManager.Instance.Session.IsVRMode && GetRecenteringInput())
         {
-            AppManager.Instance.Player.TeleportVRToCoordinates(0, 0);
+            AppManager.Instance.Player.TeleportVRToCoordinates(0, 0, true);
         }
 
         if (state != SessionDataManager.GameState.Trial)
@@ -120,8 +123,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
         {
             allowRecenter = true;
             AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
-            AppManager.Instance.Player.SetUIMessage("Recenter the room now if necessary.\n(Press the select button on your right controller, or press either trigger key to skip this step)", Color.white, -1);
-            yield return WaitForAnyTrigger();
+            AppManager.Instance.Player.SetUIMessage("Recenter the room now if necessary by standing in the center and facing forward.\n(Press the select button on your right controller, or press either trigger key to skip this step)", Color.white, -1);
+            yield return WaitForTriggerOrRightSelect();
             AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
             allowRecenter = false;
         }
@@ -142,6 +145,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         {
             // Get Data from TrialManager
             TrialSpec spec = AppManager.Instance.Trial.GetTrial(trialIndex);
+            specList.Add(spec);
 
             // Generate Map (Visuals + Heatmap math)
             // Note: Even if we loaded from CSV, we must Generate to set up the Stimulus intensity logic
@@ -160,8 +164,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
             Vector2 targetXZ = AppManager.Instance.Stimulus.GetTargetPosition(); // Truth source from Stimulus
 
             AppManager.Instance.Session.MapType = StimulusManager.MapTypes[spec.MapTypeIndex];
-            AppManager.Instance.Player.Minimap.RefreshMinimap();
-            AppManager.Instance.MapVisualizer.UpdateMeshGeometry();
+            AppManager.Instance.Utilities.Minimap.RefreshMinimap();
+            // AppManager.Instance.Utilities.MapVisualizer.UpdateMeshGeometry();
             AppManager.Instance.Session.TrialNumber = trialIndex + 1;
             AppManager.Instance.Session.SpawnPosition = startXZ;
             AppManager.Instance.Session.GoalPosition = targetXZ;
@@ -194,7 +198,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
         // FINISH
         SetState(SessionDataManager.GameState.Idle);
-        AppManager.Instance.Logger.EndLogging();
+        AppManager.Instance.Logger.EndLogging(specList);
         AppManager.Instance.Shadow.EndLogging();
         SceneManager.LoadScene("Closing Scene");
     }
@@ -231,7 +235,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
             sigmaOverride: spec.SigmaOverride
         );
         AppManager.Instance.Session.MapType = StimulusManager.MapTypes[spec.MapTypeIndex];
-        AppManager.Instance.Player.Minimap.RefreshMinimap();
+        AppManager.Instance.Utilities.Minimap.RefreshMinimap();
         AppManager.Instance.Session.SpawnPosition = spec.SpawnXZ;
         AppManager.Instance.Session.GoalPosition = spec.CenterXZ;
 

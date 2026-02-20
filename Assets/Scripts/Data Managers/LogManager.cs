@@ -1,12 +1,12 @@
-using UnityEngine;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics; // Stopwatch
 using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using System.Diagnostics; // Stopwatch
+using UnityEngine;
 
 // To add a new data logging field:
 // 1) Add the field to the LogFrame struct
@@ -25,6 +25,8 @@ public class LogManager
     private static int _timeMapVersion;
     private static long _timeMapStopwatchTicks;
     private static long _timeMapUnityTimeBits;
+
+    private string sessionFolderPath;
 
     public static void UpdateMainThreadTimeMapping(long stopwatchTicks, double unityTimeSeconds)
     {
@@ -269,14 +271,9 @@ public class LogManager
     {
         if (isLogging) return;
 
-        string participantFolder =
-        AppManager.Instance.Session.GetParticipantFolderPath();
-
-        string sessionFolderName =
-            AppManager.Instance.Session.GetFileName();
-
-        string sessionFolderPath =
-            Path.Combine(participantFolder, sessionFolderName);
+        string participantFolder = AppManager.Instance.Session.GetParticipantFolderPath();
+        string sessionFolderName = AppManager.Instance.Session.GetFileName();
+        sessionFolderPath = Path.Combine(participantFolder, sessionFolderName);
 
         Directory.CreateDirectory(sessionFolderPath);
 
@@ -316,10 +313,22 @@ public class LogManager
         writerCts = new CancellationTokenSource();
         writerTask = Task.Run(() => WriterLoop(writerCts.Token));
 
+        try
+        {
+            string sourceSettings = AppManager.Instance.Settings.FilePath;
+            string destSettings = Path.Combine(sessionFolderPath, "settings_snapshot.json");
+
+            File.Copy(sourceSettings, destSettings, true);
+        }
+        catch (Exception e)
+        {
+            UnityEngine.Debug.LogError($"[LogManager] Failed to create settings snapshot: {e.Message}");
+        }
+
         UnityEngine.Debug.Log($"[LogManager] Recording to: {fullFilePath}");
     }
 
-    public void EndLogging()
+    public void EndLogging(List<TrialSpec> specList = null)
     {
         if (!isLogging) return;
         isLogging = false;
@@ -353,6 +362,16 @@ public class LogManager
         writerTask = null;
 
         UnityEngine.Debug.Log("[LogManager] Recording stopped.");
+
+        string participantFolder = AppManager.Instance.Session.GetParticipantFolderPath();
+        string sessionFolderName = AppManager.Instance.Session.GetFileName();
+        string destTrials = Path.Combine(sessionFolderPath, "trials_snapshot.csv");
+
+        if (specList != null)
+        {
+            
+            TrialManager.SaveTrialsToCsv(destTrials, specList);
+        }
     }
 
     public void PauseLogging() { if (isLogging) paused = true; }

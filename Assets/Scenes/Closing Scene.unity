@@ -965,7 +965,7 @@ Transform:
   m_GameObject: {fileID: 583967318}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 20}
+  m_LocalPosition: {x: 0, y: 0, z: 10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1097,7 +1097,7 @@ Transform:
   m_GameObject: {fileID: 711412387}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 20, y: 0, z: 0}
+  m_LocalPosition: {x: 10, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1229,7 +1229,7 @@ Transform:
   m_GameObject: {fileID: 734253756}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
-  m_LocalPosition: {x: 0, y: 0, z: -20}
+  m_LocalPosition: {x: 0, y: 0, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2672,7 +2672,7 @@ Transform:
   m_GameObject: {fileID: 1407957716}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.7071068, z: -0, w: -0.7071068}
-  m_LocalPosition: {x: -20, y: 0, z: 0}
+  m_LocalPosition: {x: -10, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2718,6 +2718,8 @@ MonoBehaviour:
   MainCanvas: {fileID: 0}
   ColorCanvas: {fileID: 0}
   Blackscreen: {fileID: 0}
+  CController: {fileID: 0}
+  ContinuousMoveProvider: {fileID: 0}
 --- !u!114 &1417067755
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -401,11 +401,12 @@ public class SettingsManager
         UpdateCachedValues();
     }
 
-    public void LoadFromDisk()
+    public void LoadFromDisk(string filePath = null)
     {
+        filePath = (filePath == null) ? FilePath : filePath;
         RefreshTrialSourceOptions();
 
-        if (!File.Exists(FilePath))
+        if (!File.Exists(filePath))
         {
             SaveToDisk(); // Generates defaults
             Debug.Log($"No settings file exist. Generating one.");
@@ -414,7 +415,7 @@ public class SettingsManager
         try
         {
             // Read JSON
-            string json = File.ReadAllText(FilePath);
+            string json = File.ReadAllText(filePath);
             SettingsSaveData loadedData = JsonUtility.FromJson<SettingsSaveData>(json);
             if (loadedData == null)
             {
