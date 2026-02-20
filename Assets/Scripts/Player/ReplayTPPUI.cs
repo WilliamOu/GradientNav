@@ -313,7 +313,7 @@ public class ReplayTPPUI : MonoBehaviour
         // UI updates
         StateText.text = "State: " + currentStateString;
         TrialText.text = "Trial: " + currentTrial;
-        StimulusText.text = "Stimulus: " + stimulusIntensity.ToString("F2");
+        StimulusText.text = (closestFrame.State == 4) ? "Stimulus: " + stimulusIntensity.ToString("F2") : "Stimulus: -";
     }
 
     void OnDestroy()

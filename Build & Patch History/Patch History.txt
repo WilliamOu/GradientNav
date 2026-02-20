@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.6.1 - Feb 20, 2026
+- Adjusted the default text of the Stimulus text box in the Replay UI during non-trial states.
+
 Version 1.0.6.0 - Feb 20, 2026
 - Moved the banners in the Title Scene and Closing Scene closer to the player to make text more legible.
 - Disabled controller movement in the Title Scene.
