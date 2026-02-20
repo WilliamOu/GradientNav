@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.6.2 - Feb 20, 2026
+- Disabled shadows on Replay scene elements.
+
 Version 1.0.6.1 - Feb 20, 2026
 - Adjusted the default text of the Stimulus text box in the Replay UI during non-trial states.
 
