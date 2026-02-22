@@ -292,7 +292,8 @@ public class ReplayTPPUI : MonoBehaviour
                 spec.CenterXZ,
                 goalOverride: spec.GoalOverride,
                 multiPeakSpecs: spec.Peaks,
-                sigmaOverride: spec.SigmaOverride
+                sigmaOverride: spec.SigmaOverride,
+                sigmaOverrides: spec.SigmaOverrides
             );
 
             // Setup Session Data

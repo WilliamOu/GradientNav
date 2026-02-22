@@ -36,7 +36,7 @@ public static class MultiPeakSpecFactory
 public class StimulusManager : MonoBehaviour
 {
     private Vector2? activeGoalOverride;
-    public static readonly List<string> MapTypes = new List<string> { "Gaussian", "Linear", "Inverse", "Multi-Peak", "Torus" };
+    public static readonly List<string> MapTypes = new List<string> { "Gaussian", "Linear", "Inverse", "Multi-Peak", "Torus", "Linear Multi-Peak" };
     private IStimulusMap currentMap;
 
     public void GenerateMap(
@@ -46,35 +46,25 @@ public class StimulusManager : MonoBehaviour
         Vector2 centerOffset,
         Vector2? goalOverride = null,
         IReadOnlyList<PeakSpec> multiPeakSpecs = null,
-        float? sigmaOverride = null // NEW: Optional parameter
+        float? sigmaOverride = null,
+        IReadOnlyList<float> sigmaOverrides = null
     )
     {
         activeGoalOverride = goalOverride;
         float mapRadius = Mathf.Min(mapWidth, mapLength) / 2f;
-
-        // NEW: Use override if present, otherwise fallback to Settings
         float finalSigma = sigmaOverride ?? AppManager.Instance.Settings.SigmaScale;
 
         switch (typeIndex)
         {
-            case 0:
-                currentMap = new GaussianMap(centerOffset, mapRadius, finalSigma);
+            case 0: currentMap = new GaussianMap(centerOffset, mapRadius, finalSigma); break;
+            case 1: currentMap = new LinearMap(centerOffset, mapRadius, finalSigma); break;
+            case 2: currentMap = new InverseMap(centerOffset, mapRadius, finalSigma); break;
+            case 3: currentMap = new MultiPeakMap(mapRadius, finalSigma, multiPeakSpecs); break;
+            case 4: currentMap = new TorusMap(centerOffset, mapRadius, finalSigma); break;
+            case 5:
+                currentMap = new LinearMultiPeakMap(mapRadius, sigmaOverrides, multiPeakSpecs);
                 break;
-            case 1:
-                currentMap = new LinearMap(centerOffset, mapRadius, finalSigma);
-                break;
-            case 2:
-                currentMap = new InverseMap(centerOffset, mapRadius, finalSigma);
-                break;
-            case 3:
-                currentMap = new MultiPeakMap(mapRadius, finalSigma, multiPeakSpecs);
-                break;
-            case 4:
-                currentMap = new TorusMap(centerOffset, mapRadius, finalSigma);
-                break;
-            default:
-                currentMap = new GaussianMap(centerOffset, mapRadius, finalSigma);
-                break;
+            default: currentMap = new GaussianMap(centerOffset, mapRadius, finalSigma); break;
         }
 
         AppManager.Instance.Session.GoalPosition = goalOverride ?? currentMap.GetPrimaryTarget();
@@ -93,40 +83,28 @@ public class StimulusManager : MonoBehaviour
     }
 
     public static Vector2 ComputePrimaryTarget(
-        int typeIndex,
-        float mapWidth,
-        float mapLength,
-        Vector2 centerOffset,
-        IReadOnlyList<PeakSpec> multiPeakSpecs = null,
-        float? sigmaOverride = null // NEW: Optional parameter
-    )
+    int typeIndex,
+    float mapWidth,
+    float mapLength,
+    Vector2 centerOffset,
+    IReadOnlyList<PeakSpec> multiPeakSpecs = null,
+    float? sigmaOverride = null,
+    IReadOnlyList<float> sigmaOverrides = null
+)
     {
         float mapRadius = Mathf.Min(mapWidth, mapLength) / 2f;
-
-        // NEW: Use override logic here too
         float finalSigma = sigmaOverride ?? AppManager.Instance.Settings.SigmaScale;
 
         IStimulusMap map;
         switch (typeIndex)
         {
-            case 0:
-                map = new GaussianMap(centerOffset, mapRadius, finalSigma);
-                break;
-            case 1:
-                map = new LinearMap(centerOffset, mapRadius, finalSigma);
-                break;
-            case 2:
-                map = new InverseMap(centerOffset, mapRadius, finalSigma);
-                break;
-            case 3:
-                map = new MultiPeakMap(mapRadius, finalSigma, multiPeakSpecs);
-                break;
-            case 4:
-                map = new TorusMap(centerOffset, mapRadius, finalSigma);
-                break;
-            default:
-                map = new GaussianMap(centerOffset, mapRadius, finalSigma);
-                break;
+            case 0: map = new GaussianMap(centerOffset, mapRadius, finalSigma); break;
+            case 1: map = new LinearMap(centerOffset, mapRadius, finalSigma); break;
+            case 2: map = new InverseMap(centerOffset, mapRadius, finalSigma); break;
+            case 3: map = new MultiPeakMap(mapRadius, finalSigma, multiPeakSpecs); break;
+            case 4: map = new TorusMap(centerOffset, mapRadius, finalSigma); break;
+            case 5: map = new LinearMultiPeakMap(mapRadius, sigmaOverrides, multiPeakSpecs); break;
+            default: map = new GaussianMap(centerOffset, mapRadius, finalSigma); break;
         }
 
         return map.GetPrimaryTarget();

@@ -155,8 +155,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
                 AppManager.Instance.Settings.MapLength,
                 spec.CenterXZ,
                 goalOverride: spec.GoalOverride,
-                multiPeakSpecs: spec.Peaks,
-                sigmaOverride: spec.SigmaOverride
+                sigmaOverride: spec.SigmaOverride,
+                sigmaOverrides: spec.SigmaOverrides
             );
 
             // Setup Session Data
@@ -232,7 +232,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
             spec.CenterXZ,
             goalOverride: spec.GoalOverride,
             multiPeakSpecs: spec.Peaks,
-            sigmaOverride: spec.SigmaOverride
+            sigmaOverride: spec.SigmaOverride,
+            sigmaOverrides: spec.SigmaOverrides
         );
         AppManager.Instance.Session.MapType = StimulusManager.MapTypes[spec.MapTypeIndex];
         AppManager.Instance.Utilities.Minimap.RefreshMinimap();

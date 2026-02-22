@@ -56,6 +56,11 @@ public class ThreePerspectivePlayer : MonoBehaviour
 
     private float hasJumped = 0f;
 
+    public Transform GetCameraTransform()
+    {
+        return mapCamera.transform;
+    }
+
     void Start()
     {
         mapCamera = Camera.main;

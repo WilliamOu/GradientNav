@@ -257,7 +257,7 @@ public class SettingsManager
         SettingsList.Add(new FloatSetting
         {
             Name = "Sigma Scale",
-            Description = "Sigma scaling parameter. Calculated as Min(Map Width, Map Length)/[scale parameter].",
+            Description = "Sigma scaling parameter. Calculated as Min(Map Width, Map Length) * [scale parameter].",
             Value = 1.0f,
             Min = 0.0001f,
             Max = 9999f,

@@ -30,7 +30,7 @@ public class GaussianMap : IStimulusMap
     public GaussianMap(Vector2 center, float mapRadius, float sigmaScale)
     {
         this.center = center;
-        sigma = mapRadius / sigmaScale;
+        sigma = mapRadius * sigmaScale;
     }
 
     public float Evaluate(Vector2 pos)
@@ -52,7 +52,7 @@ public class LinearMap : IStimulusMap
         this.center = center;
         // If scale is 1.0, it hits 0 intensity at the wall.
         // If scale is 2.0, it hits 0 intensity halfway to the wall.
-        falloffRadius = mapRadius / sigmaScale;
+        falloffRadius = mapRadius * sigmaScale;
     }
 
     public float Evaluate(Vector2 pos)
@@ -73,7 +73,7 @@ public class InverseMap : IStimulusMap
     public InverseMap(Vector2 center, float mapRadius, float sigmaScale)
     {
         this.center = center;
-        sigma = mapRadius / sigmaScale;
+        sigma = mapRadius * sigmaScale;
     }
 
     public float Evaluate(Vector2 pos)
@@ -95,7 +95,7 @@ public class MultiPeakMap : IStimulusMap
 
     public MultiPeakMap(float mapRadius, float sigmaScale, IReadOnlyList<PeakSpec> peakSpecs)
     {
-        sigma = (mapRadius / sigmaScale) * 0.8f;
+        sigma = (mapRadius * sigmaScale);
 
         if (peakSpecs == null || peakSpecs.Count == 0)
         {
@@ -144,6 +144,84 @@ public class MultiPeakMap : IStimulusMap
     public Vector2 GetPrimaryTarget() => brightestPeakPos;
 }
 
+public class LinearMultiPeakMap : IStimulusMap
+{
+    private readonly List<PeakSpec> peaks;
+    private readonly float[] falloffRadii;
+    private readonly Vector2 brightestPeakPos;
+
+    public LinearMultiPeakMap(float mapRadius, IReadOnlyList<float> sigmaScales, IReadOnlyList<PeakSpec> peakSpecs)
+    {
+        if (peakSpecs == null || peakSpecs.Count == 0)
+        {
+            peaks = new List<PeakSpec> { new PeakSpec(Vector2.zero, 1f) };
+        }
+        else
+        {
+            peaks = peakSpecs.ToList();
+        }
+
+        // Determine primary target: highest amplitude, first wins ties.
+        float bestAmp = float.NegativeInfinity;
+        Vector2 bestPos = peaks[0].Position;
+
+        for (int i = 0; i < peaks.Count; i++)
+        {
+            if (peaks[i].Amplitude > bestAmp)
+            {
+                bestAmp = peaks[i].Amplitude;
+                bestPos = peaks[i].Position;
+            }
+        }
+
+        brightestPeakPos = bestPos;
+
+        // Build per-peak falloff radii from sigmaScales
+        falloffRadii = new float[peaks.Count];
+
+        float defaultScale = 1f;
+        bool hasSigmas = sigmaScales != null && sigmaScales.Count > 0;
+
+        for (int i = 0; i < peaks.Count; i++)
+        {
+            float scale;
+            if (!hasSigmas)
+            {
+                scale = defaultScale;
+            }
+            else
+            {
+                int idx = Mathf.Min(i, sigmaScales.Count - 1);
+                scale = sigmaScales[idx];
+            }
+
+            // Prevent division by zero or negative radii.
+            float radius = mapRadius * Mathf.Max(scale, 0.0001f);
+            falloffRadii[i] = radius;
+        }
+    }
+
+    public float Evaluate(Vector2 pos)
+    {
+        float totalIntensity = 0f;
+
+        for (int i = 0; i < peaks.Count; i++)
+        {
+            var peak = peaks[i];
+            float dist = Vector2.Distance(pos, peak.Position);
+
+            float falloffRadius = falloffRadii[i];
+            float linear = Mathf.Clamp01(1f - (dist / falloffRadius));
+
+            totalIntensity += linear * peak.Amplitude;
+        }
+
+        return totalIntensity;
+    }
+
+    public Vector2 GetPrimaryTarget() => brightestPeakPos;
+}
+
 public class TorusMap : IStimulusMap
 {
     private Vector2 center;
@@ -158,7 +236,7 @@ public class TorusMap : IStimulusMap
         ringRadius = mapRadius * 0.5f;
 
         // Sharper than a standard Gaussian because it's a thin ring
-        sigma = (mapRadius / sigmaScale) * 0.5f;
+        sigma = (mapRadius * sigmaScale) * 0.5f;
     }
 
     public float Evaluate(Vector2 pos)

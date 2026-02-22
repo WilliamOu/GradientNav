@@ -15,6 +15,7 @@ public class TrialSpec
     public List<Vector2> ExtraGoals = new();
     public List<PeakSpec> Peaks;
     public float? SigmaOverride;
+    public List<float> SigmaOverrides = new();
 }
 
 public enum TrialPlanMode
@@ -231,6 +232,21 @@ public class TrialManager : MonoBehaviour
 
     private static bool TryParseFloat(string s, out float f) => float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out f);
 
+    public static List<float> ParseFloatList(string s)
+    {
+        var list = new List<float>();
+        if (string.IsNullOrWhiteSpace(s)) return list;
+
+        var items = s.Trim().Trim('"').Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var item in items)
+        {
+            var token = item.Trim();
+            if (TryParseFloat(token, out float v))
+                list.Add(v);
+        }
+        return list;
+    }
+
     private static int ParseMapTypeIndex(string s)
     {
         if (string.IsNullOrWhiteSpace(s)) return 0;
@@ -298,6 +314,7 @@ public class TrialManager : MonoBehaviour
         int cGoals = Col("Goals");
         int cPeaks = Col("Peaks");
         int cSigma = Col("Sigma");
+        int cSigmas = Col("Sigmas");
 
         if (cMapType < 0 || cSpawnX < 0 || cSpawnZ < 0)
             throw new Exception("CSV missing required columns.");
@@ -330,8 +347,15 @@ public class TrialManager : MonoBehaviour
 
             float? sigmaOverride = null;
             if (cSigma >= 0 && TryParseFloat(Get(cSigma), out float sVal))
-            {
                 sigmaOverride = sVal;
+
+            var sigmaOverrides = (cSigmas >= 0) ? ParseFloatList(Get(cSigmas)) : new List<float>();
+
+            bool isMultiPeak = (mapType == 3 || mapType == 5);
+            if (isMultiPeak && (peaks == null || peaks.Count == 0))
+            {
+                Debug.LogWarning($"Skipping line {i + 1}: {StimulusManager.MapTypes[mapType]} requires Peaks.");
+                continue;
             }
 
             trials.Add(new TrialSpec
@@ -342,7 +366,8 @@ public class TrialManager : MonoBehaviour
                 GoalOverride = goalOverride,
                 ExtraGoals = (goals.Count > 1) ? goals.Skip(1).ToList() : new List<Vector2>(),
                 Peaks = peaks,
-                SigmaOverride = sigmaOverride // NEW: Assign the value
+                SigmaOverride = sigmaOverride,
+                SigmaOverrides = sigmaOverrides
             });
         }
         return trials;
@@ -353,7 +378,7 @@ public class TrialManager : MonoBehaviour
         var sb = new StringBuilder();
 
         // Header
-        sb.AppendLine("MapType,SpawnX,SpawnZ,CenterX,CenterZ,Goals,Peaks,Sigma");
+        sb.AppendLine("MapType,SpawnX,SpawnZ,CenterX,CenterZ,Goals,Peaks,Sigma,Sigmas");
 
         foreach (var t in trials)
         {
@@ -379,12 +404,16 @@ public class TrialManager : MonoBehaviour
                 peaksStr = string.Join("|", pList); // Note: Pipe separator
             }
 
-            // Sigma
-            string sigmaStr = t.SigmaOverride.HasValue ? t.SigmaOverride.Value.ToString("F2") : "";
+            // Sigma(s)
+            string sigmaStr = t.SigmaOverride.HasValue
+                ? t.SigmaOverride.Value.ToString("F2", CultureInfo.InvariantCulture)
+                : "";
 
-            // Construct Line
-            // Note: We use CenterXZ.x and CenterXZ.y (mapped to Z in world)
-            sb.AppendLine($"{typeStr},{t.SpawnXZ.x:F2},{t.SpawnXZ.y:F2},{t.CenterXZ.x:F2},{t.CenterXZ.y:F2},{goalsStr},{peaksStr},{sigmaStr}");
+            string sigmasStr = "";
+            if (t.SigmaOverrides != null && t.SigmaOverrides.Count > 0)
+                sigmasStr = string.Join("|", t.SigmaOverrides.Select(v => v.ToString("F2", CultureInfo.InvariantCulture)));
+
+            sb.AppendLine($"{typeStr},{t.SpawnXZ.x:F2},{t.SpawnXZ.y:F2},{t.CenterXZ.x:F2},{t.CenterXZ.y:F2},{goalsStr},{peaksStr},{sigmaStr},{sigmasStr}");
         }
 
         File.WriteAllText(path, sb.ToString());

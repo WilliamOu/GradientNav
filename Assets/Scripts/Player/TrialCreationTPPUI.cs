@@ -23,6 +23,7 @@ public class TrialCreationTPPUI : MonoBehaviour
     [SerializeField] private Button saveFileBtn;
     [SerializeField] private Button backBtn;
     [SerializeField] private GameObject panel;
+    [SerializeField] private Transform outOfBoundsLocation;
 
     [Header("Trial Navigation")]
     [SerializeField] private TMP_Dropdown trialSelectorDropdown;
@@ -73,7 +74,6 @@ public class TrialCreationTPPUI : MonoBehaviour
 
     private void Start()
     {
-        AppManager.Instance.Utilities.Minimap.gameObject.SetActive(false);
         if (panel != null) panel.SetActive(true);
 
         RefreshFileList();
@@ -111,6 +111,8 @@ public class TrialCreationTPPUI : MonoBehaviour
         }
         // if (panel != null) panel.SetActive(false);
         AppManager.Instance.Utilities.MapVisualizer.ToggleMap(true);
+        AppManager.Instance.Utilities.Minimap.ManualUpdate(outOfBoundsLocation);
+        AppManager.Instance.Utilities.Minimap.gameObject.SetActive(true);
     }
 
     private void OnDestroy()
@@ -248,6 +250,7 @@ public class TrialCreationTPPUI : MonoBehaviour
     private void ReturnToTitle()
     {
         AppManager.Instance.Utilities.MapVisualizer.ToggleMap(false);
+        AppManager.Instance.Utilities.Minimap.ToggleMinimap(false);
         SceneManager.LoadScene("Title Scene");
     }
 
@@ -336,7 +339,18 @@ public class TrialCreationTPPUI : MonoBehaviour
         mapTypeDropdown.AddOptions(StimulusManager.MapTypes);
         mapTypeDropdown.value = spec.MapTypeIndex;
 
-        sigmaInput.text = spec.SigmaOverride.HasValue ? spec.SigmaOverride.Value.ToString() : "";
+        if (spec.MapTypeIndex == 5)
+        {
+            // Show list like: "0.50 | 0.80 | 1.20"
+            if (spec.SigmaOverrides != null && spec.SigmaOverrides.Count > 0)
+                sigmaInput.text = string.Join(" | ", spec.SigmaOverrides.Select(v => v.ToString()));
+            else
+                sigmaInput.text = "";
+        }
+        else
+        {
+            sigmaInput.text = spec.SigmaOverride.HasValue ? spec.SigmaOverride.Value.ToString() : "";
+        }
         spawnInput.text = $"{spec.SpawnXZ.x}, {spec.SpawnXZ.y}";
         goalInput.text = spec.GoalOverride.HasValue ? $"{spec.GoalOverride.Value.x}, {spec.GoalOverride.Value.y}" : "";
         centerInput.text = $"{spec.CenterXZ.x}, {spec.CenterXZ.y}";
@@ -356,7 +370,7 @@ public class TrialCreationTPPUI : MonoBehaviour
         else peaksInput.text = "";
 
         // Container Visibility
-        bool isMultiPeak = (spec.MapTypeIndex == 3);
+        bool isMultiPeak = (spec.MapTypeIndex == 3 || spec.MapTypeIndex == 5);
         multiPeakContainer.SetActive(isMultiPeak);
         centerContainer.SetActive(!isMultiPeak);
 
@@ -380,18 +394,32 @@ public class TrialCreationTPPUI : MonoBehaviour
         if (g == Vector2.zero && string.IsNullOrWhiteSpace(goalInput.text)) spec.GoalOverride = null;
         else spec.GoalOverride = g;
 
-        // Sigma
-        if (float.TryParse(sigmaInput.text, out float sVal)) spec.SigmaOverride = sVal;
-        else spec.SigmaOverride = null;
+        // Sigma / Sigmas
+        if (spec.MapTypeIndex == 5)
+        {
+            spec.SigmaOverrides = TrialManager.ParseFloatList(sigmaInput.text);
+
+            // Optional: don’t use single sigma for this type
+            spec.SigmaOverride = null;
+        }
+        else
+        {
+            if (float.TryParse(sigmaInput.text, out float sVal)) spec.SigmaOverride = sVal;
+            else spec.SigmaOverride = null;
+
+            // Optional: keep list empty for non-type-5 to avoid confusion
+            if (spec.SigmaOverrides == null) spec.SigmaOverrides = new List<float>();
+            else spec.SigmaOverrides.Clear();
+        }
 
         // Peaks Parsing
-        if (spec.MapTypeIndex == 3) // MultiPeak
+        if (spec.MapTypeIndex == 3 || spec.MapTypeIndex == 5) // MultiPeak + Linear Multi-Peak
         {
             spec.Peaks = new List<PeakSpec>();
             var entries = peaksInput.text.Split('|');
             foreach (var entry in entries)
             {
-                var parts = entry.Split(','); // or spaces
+                var parts = entry.Split(',');
                 if (parts.Length >= 2)
                 {
                     float x = float.Parse(parts[0]);
@@ -408,9 +436,14 @@ public class TrialCreationTPPUI : MonoBehaviour
         trialSelectorDropdown.RefreshShownValue();
 
         // Refresh Visibility
-        bool isMultiPeak = (spec.MapTypeIndex == 3);
+        bool isMultiPeak = (spec.MapTypeIndex == 3 || spec.MapTypeIndex == 5);
         multiPeakContainer.SetActive(isMultiPeak);
         centerContainer.SetActive(!isMultiPeak);
+
+        // Enable randomize + peaks UI for both 3 and 5
+        if (generatePeaksBtn != null) generatePeaksBtn.interactable = isMultiPeak;
+        if (peaksInput != null) peaksInput.interactable = isMultiPeak;
+        if (peakCountGenInput != null) peakCountGenInput.interactable = isMultiPeak;
 
         Update3DPreview();
     }
@@ -455,11 +488,13 @@ public class TrialCreationTPPUI : MonoBehaviour
             centerOffset,
             spec.GoalOverride,
             spec.Peaks,
-            spec.SigmaOverride
+            sigmaOverride: spec.SigmaOverride,
+            sigmaOverrides: spec.SigmaOverrides
         );
 
         // Now tell the visualizer to redraw the mesh
         AppManager.Instance.Utilities.MapVisualizer.UpdateMeshGeometry();
+        AppManager.Instance.Utilities.Minimap.RefreshMinimap();
     }
 
     // Helper

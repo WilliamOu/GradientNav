@@ -2,6 +2,12 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.7.0 - Feb 21, 2026
+- Added a Linear variant of the Multi-Peak map. 
+- Enabled the minimap in the Trial Creation Scene. 
+- Adjusted the sigma scaling parameter to multiply the sigma value rather than divide it.
+- Updated the example trials to match the updated sigma calculation. 
+
 Version 1.0.6.3 - Feb 20, 2026
 - Added header validation to the replay system. 
 - Fixed an issue where the Trial was erronously reading 0 due to improper header reading.
