@@ -2,6 +2,10 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.8.0 - Feb 21, 2026
+- Adjusted the Replay Manager to support XRI only replay. 
+- Fixed a bug where the pause/play button would not properly update when pausing playback during slider selection.
+
 Version 1.0.7.0 - Feb 21, 2026
 - Added a Linear variant of the Multi-Peak map. 
 - Enabled the minimap in the Trial Creation Scene. 

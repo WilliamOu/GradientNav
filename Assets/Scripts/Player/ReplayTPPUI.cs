@@ -329,7 +329,9 @@ public class ReplayTPPUI : MonoBehaviour
         // Only update replay if we are dragging, otherwise Update loop handles it
         if (isDraggingSlider && AppManager.Instance.Replay != null)
         {
-            AppManager.Instance.Replay.SetPlayState(false); // Pause while scrubbing
+            if (AppManager.Instance.Replay.IsPlaying)
+                TogglePlayPause();
+
             AppManager.Instance.Replay.SetTime(value);
         }
     }

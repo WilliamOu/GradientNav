@@ -167,19 +167,22 @@ public class ReplayManager : MonoBehaviour
     {
         if (isPlaying)
         {
+            if (totalDuration <= 0f)
+            {
+                isPlaying = false;
+                return;
+            }
+
             currentTime += Time.deltaTime * playbackSpeed;
 
-            // Loop logic
             if (currentTime >= totalDuration)
-            {
                 currentTime = 0f;
-            }
 
             EvaluateAtTime(currentTime);
         }
 
         // Always run visuals updates (in case of seeking while paused)
-        if (shadowRoot != null)
+        if (shadowRoot != null && shadowStream != null && shadowStream.FrameCount > 0)
         {
             AnchorShadowPosition();
             ApplyShadowRotation();
@@ -211,12 +214,34 @@ public class ReplayManager : MonoBehaviour
             xriStream = new XriStreamer(xriFiles[0]);
             shadowStream = new ShadowStreamer(shadowFiles[0]);
 
-            // Sync Time Bases
-            // We align both streams to the earliest timestamp found.
-            long startTick = Math.Min(xriStream.StartTick, shadowStream.StartTick);
-            long freq = shadowStream.Frequency; // Shadow usually has the reliable frequency
+            if (xriStream.FrameCount == 0 && shadowStream.FrameCount == 0)
+            {
+                Debug.LogWarning("[Replay] Both streams contain only headers (0 frames). Nothing to replay.");
 
-            if (freq == 0) freq = System.Diagnostics.Stopwatch.Frequency;
+                SpawnVisuals();
+                SetTime(0f);
+
+                totalDuration = 0f;
+                isPlaying = false;
+                return;
+            }
+
+            if (shadowStream.FrameCount == 0)
+                Debug.LogWarning("[Replay] Shadow stream contains only header (0 frames).");
+
+            if (xriStream.FrameCount == 0)
+                Debug.LogWarning("[Replay] XRI stream contains only header (0 frames).");
+
+            long startTick = 0;
+            if (xriStream.FrameCount > 0 && shadowStream.FrameCount > 0)
+                startTick = Math.Min(xriStream.StartTick, shadowStream.StartTick);
+            else if (xriStream.FrameCount > 0)
+                startTick = xriStream.StartTick;
+            else if (shadowStream.FrameCount > 0)
+                startTick = shadowStream.StartTick;
+
+            long freq = shadowStream.Frequency;
+            if (freq <= 0) freq = System.Diagnostics.Stopwatch.Frequency; // Fallback if header frequency is 0
 
             xriStream.SetTiming(startTick, freq);
             shadowStream.SetTiming(startTick, freq);
@@ -224,14 +249,25 @@ public class ReplayManager : MonoBehaviour
             // Setup Duration & Steps
             totalDuration = Mathf.Max(xriStream.Duration, shadowStream.Duration);
 
-            // Calculate a single "Frame" as the time between two shadow samples
+            // Calculate a single "Frame" based on the valid stream
             if (shadowStream.FrameCount > 1)
                 frameStepSize = shadowStream.Duration / shadowStream.FrameCount;
+            else if (xriStream.FrameCount > 1)
+                frameStepSize = xriStream.Duration / xriStream.FrameCount;
+            else
+                frameStepSize = 0.033f; // Fallback
 
             Debug.Log($"[Replay] Loaded. Duration: {totalDuration:F2}s. Frame Step: {frameStepSize:F4}s");
 
             // Spawn & Reset
             SpawnVisuals();
+
+            // Hide shadow rig if no mocap data exists
+            if (shadowStream.FrameCount == 0 && shadowRoot != null)
+            {
+                shadowRoot.gameObject.SetActive(false);
+            }
+
             SetTime(0f);
 
             if (autoAlignOnStart)
@@ -264,12 +300,9 @@ public class ReplayManager : MonoBehaviour
     private void EvaluateAtTime(float time)
     {
         // Evaluate Shadow (Body)
-        if (shadowStream != null)
+        if (shadowStream != null && shadowStream.FrameCount > 0)
         {
-            // This function handles the file seeking and interpolation
             var (a, b, t) = shadowStream.GetFrame(time);
-
-            // Check for "Freeze" (if gap is too large, snap to A)
             if (b.Time - a.Time > 0.1f) t = 0f;
 
             for (int i = 0; i < ShadowBoneCount; i++)
@@ -277,19 +310,16 @@ public class ReplayManager : MonoBehaviour
                 if (shadowDots[i] != null)
                 {
                     Vector3 raw = Vector3.Lerp(a.Positions[i], b.Positions[i], t);
-
-                    // Apply Import Settings
                     raw *= importScale;
                     Vector3 p = MapAxis(raw, axisMapping);
                     if (negateX) p.x = -p.x;
-
                     shadowDots[i].localPosition = p;
                 }
             }
         }
 
         // Evaluate XRI (Headset/Controllers)
-        if (xriStream != null)
+        if (xriStream != null && xriStream.FrameCount > 0)
         {
             var (a, b, t) = xriStream.GetFrame(time);
             if (b.Time - a.Time > 0.1f) t = 0f;
@@ -533,28 +563,63 @@ public class ReplayManager : MonoBehaviour
         protected abstract void ReadFramePayload(T target); // Read actual data
         protected abstract void SkipFramePayload(); // Just move pointer forward
 
-        // The "Scan"
         private void BuildIndex()
         {
             long len = fs.Length;
+
             // Assumes file pointer is at start of first frame data
-            while (fs.Position < len)
+            while (true)
             {
+                // Need at least 8 bytes to read ticks
+                if (fs.Position + sizeof(long) > len)
+                    break;
+
                 long pos = fs.Position;
-                long ticks = br.ReadInt64(); // Every frame starts with Ticks
+
+                long ticks;
+                try
+                {
+                    ticks = br.ReadInt64(); // Every frame starts with Ticks
+                }
+                catch (EndOfStreamException)
+                {
+                    break; // clean exit: no complete frame
+                }
 
                 if (fileOffsets.Count == 0) StartTick = ticks;
 
                 fileOffsets.Add(pos);
-                // Store raw duration relative to self (will normalize later)
-                // We don't have frequency yet, so just store ticks.
-                // NOTE: We'll overwrite 'timeStamps' once we set timing.
-                timeStamps.Add(0); // Placeholder
+                timeStamps.Add(0f); // Placeholder until SetTiming()
 
-                // Reset to start of payload (after ticks) or just continue?
-                // Standard convention: ReadTicks advanced 8 bytes.
-                // We need to skip the REST of the frame.
-                SkipFramePayload();
+                // Try to skip the rest of the frame. If it runs off the end, discard this partial frame.
+                long beforeSkip = fs.Position;
+                try
+                {
+                    SkipFramePayload();
+                }
+                catch (EndOfStreamException)
+                {
+                    // Discard the frame we just added, since it wasn't complete
+                    fileOffsets.RemoveAt(fileOffsets.Count - 1);
+                    timeStamps.RemoveAt(timeStamps.Count - 1);
+                    break;
+                }
+
+                // If a Seek jumped past EOF, also discard and stop
+                if (fs.Position > len)
+                {
+                    fs.Position = beforeSkip; // optional: restore
+                    fileOffsets.RemoveAt(fileOffsets.Count - 1);
+                    timeStamps.RemoveAt(timeStamps.Count - 1);
+                    break;
+                }
+            }
+
+            // If there are no frames, make sure timing state is sensible
+            if (fileOffsets.Count == 0)
+            {
+                StartTick = 0;
+                Duration = 0f;
             }
         }
 
@@ -563,17 +628,12 @@ public class ReplayManager : MonoBehaviour
             globalStartTick = globalStart;
             frequency = (double)freq;
 
-            // Retroactively calculate seconds for the index
-            // We have to re-read ticks or just assume we can't without re-seeking?
-            // Actually, to keep memory low, we shouldn't store ticks in RAM.
-            // But we need to know the time of the frames for BinarySearch.
+            if (fileOffsets.Count == 0)
+            {
+                Duration = 0f;
+                return;
+            }
 
-            // Re-pass: Update timestamps in the list.
-            // This is fast (RAM only) if we stored ticks, but we didn't store ticks to save RAM.
-            // Compromise: We need to re-read the ticks from disk? No, that's slow.
-            // Better approach: Store Ticks in the BuildIndex phase temporarily, then convert.
-
-            // For now, let's just re-read the ticks from the start, it's safer.
             for (int i = 0; i < fileOffsets.Count; i++)
             {
                 fs.Seek(fileOffsets[i], SeekOrigin.Begin);
@@ -581,8 +641,7 @@ public class ReplayManager : MonoBehaviour
                 timeStamps[i] = (float)((t - globalStartTick) / frequency);
             }
 
-            if (timeStamps.Count > 0)
-                Duration = timeStamps[timeStamps.Count - 1];
+            Duration = timeStamps[timeStamps.Count - 1];
         }
 
         public (T, T, float) GetFrame(float time)
@@ -721,7 +780,7 @@ public class ReplayManager : MonoBehaviour
         }
     }
 
-    // --- Shadow Implementation ---
+    // Shadow Implementation
     public class ShadowStreamer : IndexedStreamer<ShadowFrame>
     {
         public long Frequency { get; private set; }

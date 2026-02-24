@@ -17,7 +17,7 @@ public class ReplaySceneManager : MonoBehaviour
 
         if (cloud == null)
         {
-            Debug.LogError("FAILURE: 'ShadowCloud' GameObject not found. SpawnVisuals() likely crashed or wasn't called.");
+            Debug.LogWarning("FAILURE: 'ShadowCloud' GameObject not found. If the Shadow Mocap was not used in this replay this issue can be ignored. Otherwise, SpawnVisuals() likely crashed or wasn't called.");
         }
         else
         {
