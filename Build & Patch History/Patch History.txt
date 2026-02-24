@@ -2,7 +2,10 @@
 Patch History For GradientNav
 =============================
 
-Version 1.0.8.0 - Feb 21, 2026
+Version 1.0.8.1 - Feb 23, 2026
+- Added a Z axis inversion option in the Replay Manager for correcting rotation alignment.
+
+Version 1.0.8.0 - Feb 23, 2026
 - Adjusted the Replay Manager to support XRI only replay. 
 - Fixed a bug where the pause/play button would not properly update when pausing playback during slider selection.
 

@@ -37,11 +37,12 @@ public class ReplayManager : MonoBehaviour
     public AxisPermutation axisMapping = AxisPermutation.XYZ;
     public float importScale = 0.01f;
     public bool negateX = false;
+    public bool negateZ = true;
 
     [Header("Anchoring & Calibration")]
     [Range(0, 16)] public int headIndex = 1;
     public Vector3 shadowHeadToSkullOffset = Vector3.zero;
-    [Range(0f, 360f)] public float yawCorrection = 0f;
+    [Range(0f, 360f)] public float yawCorrection = 180f;
 
     [Header("Auto-Align")]
     private bool autoAlignOnStart = false;
@@ -313,6 +314,7 @@ public class ReplayManager : MonoBehaviour
                     raw *= importScale;
                     Vector3 p = MapAxis(raw, axisMapping);
                     if (negateX) p.x = -p.x;
+                    if (negateZ) p.z = -p.z;
                     shadowDots[i].localPosition = p;
                 }
             }
