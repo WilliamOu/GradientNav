@@ -10,7 +10,7 @@ public class ThreePerspectivePlayer : MonoBehaviour
     public Mode CurrentMode = Mode.Isometric;
     public Mode LastBirdsEyeViewMode = Mode.Isometric;
     public bool IsZoomed;
-    public bool IsFrozen = false; // New Freeze State
+    public bool IsFrozen = false;
 
     // Subscribe to these in your UI/Study Manager scripts
     public event Action<bool> OnFreezeStateChanged;

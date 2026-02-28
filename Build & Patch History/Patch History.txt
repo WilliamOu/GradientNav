@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.8.2 - Feb 24, 2026
+- Fixed inverted rotation scheme for the Shadow Mocap System. 
+
 Version 1.0.8.1 - Feb 23, 2026
 - Added a Z axis inversion option in the Replay Manager for correcting rotation alignment.
 

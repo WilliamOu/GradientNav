@@ -8,20 +8,20 @@ Limbs:
 Chest: 0
 Head: 1
 Pelvis: 2
-Right Shoulder/Upper Arm: 3
-Right Foot: 4
-Right Elbow: 5
-Right Hand: 6
-Right Knee: 7
-Right Collarbone: 8
-Right Upper Leg: 9
+Left Shoulder/Upper Arm: 3
+Left Foot: 4
+Left Elbow: 5
+Left Hand: 6
+Left Knee: 7
+Left Collarbone: 8
+Left Upper Leg: 9
 Left Shoulder/Upper Arm: 10
-Left Foot: 11
-Left Elbow: 12
-Left Hand: 13
-Left Knee: 14
-Left Collarbone: 15
-Left Upper Leg: 16
+Right Foot: 11
+Right Elbow: 12
+Right Hand: 13
+Right Knee: 14
+Right Collarbone: 15
+Right Upper Leg: 16
 */
 
 public class ReplayManager : MonoBehaviour
@@ -42,12 +42,12 @@ public class ReplayManager : MonoBehaviour
     [Header("Anchoring & Calibration")]
     [Range(0, 16)] public int headIndex = 1;
     public Vector3 shadowHeadToSkullOffset = Vector3.zero;
-    [Range(0f, 360f)] public float yawCorrection = 180f;
+    [Range(0f, 360f)] public float yawCorrection = 0f;
 
     [Header("Auto-Align")]
     private bool autoAlignOnStart = false;
-    public int shadowLeftHandIndex = 13;
-    public int shadowRightHandIndex = 6;
+    public int shadowLeftHandIndex = 6;
+    public int shadowRightHandIndex = 13;
     private bool continuousAutoAlign = false;
 
     [Header("Playback Controls")]
