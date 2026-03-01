@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,11 +14,29 @@ public class MinimapRenderer : MonoBehaviour
     [SerializeField] private int resolution = 256;
     [SerializeField] private Gradient heatGradient;
 
+    [Header("Trace Config")]
+    [Tooltip("Assign a prefab with a simple UI Image (e.g., a white square).")]
+    [SerializeField] private GameObject traceSegmentPrefab;
+    [Tooltip("Assign an empty RectTransform inside the minimap to hold the segments.")]
+    [SerializeField] private RectTransform traceContainer;
+    [SerializeField] private float traceThickness = 2f;
+    [SerializeField] private float traceRecordInterval = 0.1f;
+    [SerializeField] private float traceMinMoveDistance = 0.1f;
+
     private Texture2D _mapTexture;
     private float _worldSizeForUI;
 
     private Color32[] _pixels32;
     private bool _pixelsReady;
+
+    private struct TracePoint
+    {
+        public Vector2 WorldPos;
+        public float TimeStamp;
+    }
+    private List<TracePoint> _tracePoints = new List<TracePoint>();
+    private List<RectTransform> _segmentPool = new List<RectTransform>();
+    private float _lastTraceTime;
 
     private void Awake()
     {
@@ -48,7 +67,6 @@ public class MinimapRenderer : MonoBehaviour
 
         _worldSizeForUI = Mathf.Max(width, length);
 
-        // Generate Pixels
         Color[] pixels = new Color[resolution * resolution];
         float halfSize = _worldSizeForUI / 2f;
 
@@ -56,18 +74,13 @@ public class MinimapRenderer : MonoBehaviour
         {
             for (int x = 0; x < resolution; x++)
             {
-                // Convert Pixel (x,y) -> UV (0..1) -> World (meters)
                 float u = x / (float)(resolution - 1);
                 float v = y / (float)(resolution - 1);
 
-                // Map 0..1 to -HalfSize..+HalfSize (Centered on 0,0)
                 float worldX = Mathf.Lerp(-halfSize, halfSize, u);
                 float worldZ = Mathf.Lerp(-halfSize, halfSize, v);
 
-                // Query the Math Strategy
                 float intensity = AppManager.Instance.Stimulus.GetIntensity(new Vector3(worldX, 0, worldZ));
-
-                // Colorize
                 pixels[y * resolution + x] = heatGradient.Evaluate(intensity);
             }
         }
@@ -75,11 +88,14 @@ public class MinimapRenderer : MonoBehaviour
         _mapTexture.SetPixels(pixels);
         _mapTexture.Apply();
 
-        // 3. Update Goal Icon (Optional)
         if (goalIcon != null)
         {
             Vector2 goalPos = AppManager.Instance.Session.GoalPosition;
             UpdateIconPosition(goalIcon, goalPos);
+        }
+        if (AppManager.Instance.Settings.ClearTraceOnNewTrial)
+        {
+            ClearTrace();
         }
     }
 
@@ -136,17 +152,48 @@ public class MinimapRenderer : MonoBehaviour
 
         Vector3 camPos = playerTransform.position;
         Vector2 playerXZ = new Vector2(camPos.x, camPos.z);
+
         UpdateIconPosition(playerIcon, playerXZ);
 
         float currentYaw = playerTransform.eulerAngles.y;
         float correctedYaw = -currentYaw - 45f;
-
         playerIcon.rotation = Quaternion.Euler(0f, 0f, correctedYaw);
+
+        float traceLength = AppManager.Instance.Settings.RecallLength;
+        if (traceLength > 0f)
+        {
+            float currentTime = Time.time;
+
+            // Record a new point if enough time has passed AND the player has moved
+            if (currentTime - _lastTraceTime >= traceRecordInterval)
+            {
+                if (_tracePoints.Count == 0 || Vector2.Distance(_tracePoints[_tracePoints.Count - 1].WorldPos, playerXZ) > traceMinMoveDistance)
+                {
+                    _tracePoints.Add(new TracePoint { WorldPos = playerXZ, TimeStamp = currentTime });
+                }
+                _lastTraceTime = currentTime;
+            }
+
+            // Cull points that are older than TraceLength
+            while (_tracePoints.Count > 0 && currentTime - _tracePoints[0].TimeStamp > traceLength)
+            {
+                _tracePoints.RemoveAt(0);
+            }
+
+            DrawTrace();
+        }
+        else if (_tracePoints.Count > 0)
+        {
+            // If TraceLength is 0, clear data and wipe the screen segments
+            _tracePoints.Clear();
+            DrawTrace();
+        }
     }
 
-    private void UpdateIconPosition(RectTransform icon, Vector2 worldPos)
+    // Extracted the math so it can be shared between Icons and Trace segments
+    private Vector2 WorldToUIPosition(Vector2 worldPos)
     {
-        if (_worldSizeForUI <= 0) return;
+        if (_worldSizeForUI <= 0) return Vector2.zero;
 
         float halfSize = _worldSizeForUI / 2f;
         float normX = (worldPos.x + halfSize) / _worldSizeForUI;
@@ -157,6 +204,58 @@ public class MinimapRenderer : MonoBehaviour
         float uiX = (normX - 0.5f) * uiWidth;
         float uiY = (normY - 0.5f) * uiHeight;
 
-        icon.anchoredPosition = new Vector2(uiX, uiY);
+        return new Vector2(uiX, uiY);
+    }
+
+    private void UpdateIconPosition(RectTransform icon, Vector2 worldPos)
+    {
+        icon.anchoredPosition = WorldToUIPosition(worldPos);
+    }
+
+    private void DrawTrace()
+    {
+        if (traceSegmentPrefab == null || traceContainer == null) return;
+
+        // We need 1 less segment than we have points (connecting P1->P2, P2->P3, etc)
+        int requiredSegments = Mathf.Max(0, _tracePoints.Count - 1);
+
+        // Enable needed segments, disable unused ones
+        for (int i = 0; i < _segmentPool.Count; i++)
+        {
+            _segmentPool[i].gameObject.SetActive(i < requiredSegments);
+        }
+
+        // Instantiate new segments if the pool is too small
+        while (_segmentPool.Count < requiredSegments)
+        {
+            GameObject newSegment = Instantiate(traceSegmentPrefab, traceContainer);
+            _segmentPool.Add(newSegment.GetComponent<RectTransform>());
+        }
+
+        // Position, rotate, and scale segments to form a continuous line
+        for (int i = 0; i < requiredSegments; i++)
+        {
+            Vector2 startPos = WorldToUIPosition(_tracePoints[i].WorldPos);
+            Vector2 endPos = WorldToUIPosition(_tracePoints[i + 1].WorldPos);
+
+            RectTransform segment = _segmentPool[i];
+
+            // Center the segment between the two points
+            segment.anchoredPosition = (startPos + endPos) / 2f;
+
+            // Rotate to face the next point
+            Vector2 dir = endPos - startPos;
+            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+            segment.localRotation = Quaternion.Euler(0, 0, angle);
+
+            // Stretch width to match distance, set height to trace thickness
+            segment.sizeDelta = new Vector2(dir.magnitude, traceThickness);
+        }
+    }
+
+    public void ClearTrace()
+    {
+        _tracePoints.Clear();
+        DrawTrace();
     }
 }

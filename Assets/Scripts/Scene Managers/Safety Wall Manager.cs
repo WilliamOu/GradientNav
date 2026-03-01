@@ -2,6 +2,7 @@ using UnityEngine;
 
 public class SafetyWallManager : MonoBehaviour
 {
+    public bool IsReplay = false;
     public Shader wallShader;
 
     public GameObject wallNorth;
@@ -24,7 +25,8 @@ public class SafetyWallManager : MonoBehaviour
 
     void Start()
     {
-        if (!AppManager.Instance.Session.IsVRMode || !AppManager.Instance.Settings.EnableSafetyWalls)
+        bool shouldBeActive = (AppManager.Instance.Session.IsVRMode || IsReplay) && AppManager.Instance.Settings.EnableSafetyWalls;
+        if (!shouldBeActive)
         {
             if (wallNorth) wallNorth.gameObject.SetActive(false);
             if (wallSouth) wallSouth.gameObject.SetActive(false);
@@ -108,16 +110,31 @@ public class SafetyWallManager : MonoBehaviour
 
     void Update()
     {
-        if (!AppManager.Instance.Session.IsVRMode) return;
-        if (AppManager.Instance.Player == null) return;
+        if(!IsReplay)
+        {
+            if (!AppManager.Instance.Session.IsVRMode) return;
+            if (AppManager.Instance.Player == null) return;
+        }
 
-        // 1. Get Head Position
-        Transform camT = AppManager.Instance.Player.CameraPosition();
-        Vector3 headPos = camT != null ? camT.position : Vector3.zero;
-
-        // 2. Get Hand Positions
+        Vector3 headPos;
         Vector3 lPos, lRot, rPos, rRot;
-        AppManager.Instance.Player.GetVRHandWorldData(out lPos, out lRot, out rPos, out rRot);
+        if (!IsReplay)
+        {
+            // Get Head Position
+            Transform camT = AppManager.Instance.Player.CameraPosition();
+            headPos = camT != null ? camT.position : Vector3.zero;
+
+            // Get Hand Positions
+            AppManager.Instance.Player.GetVRHandWorldData(out lPos, out lRot, out rPos, out rRot);
+        }
+        else
+        {
+            headPos = AppManager.Instance.Replay.GetXriHeadTransform().position;
+            Transform left = AppManager.Instance.Replay.GetXriLeftHandTransform();
+            Transform right = AppManager.Instance.Replay.GetXriRightHandTransform();
+            lPos = left.position;
+            rPos = right.position;
+        }
 
         // Sanity Check: Move missing hands to infinity
         if (lPos == Vector3.zero) lPos = Vector3.one * 9999f;

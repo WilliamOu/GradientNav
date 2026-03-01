@@ -134,6 +134,16 @@ public class ReplayManager : MonoBehaviour
         return xriHead;
     }
 
+    public Transform GetXriLeftHandTransform()
+    {
+        return xriLeft;
+    }
+
+    public Transform GetXriRightHandTransform()
+    {
+        return xriRight;
+    }
+
     public void SetTime(float time)
     {
         // Clamp and Set

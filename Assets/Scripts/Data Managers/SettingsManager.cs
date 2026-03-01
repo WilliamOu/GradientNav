@@ -60,6 +60,8 @@ public class SettingsManager
     public float MapWidth { get; private set; }
     public float TimeToSeek { get; private set; }
     public float SuccessThreshold { get; private set; }
+    public bool UseMessageOnTrialEnd { get; private set; }
+    public bool UseAdditionalInformationOnTrialEndMessage { get; private set; }
     public float DataLogInterval { get; private set; }
     public int BufferSizeBeforeWrite { get; private set; }
     public bool EnablePause { get; private set; }
@@ -75,6 +77,8 @@ public class SettingsManager
     public float SigmaScale { get; private set; }
     public int MapTypeIndex { get; private set; }
     public bool RefreshMatrixEvolution { get; private set; }
+    public float RecallLength { get; private set; }
+    public bool ClearTraceOnNewTrial { get; private set; }
     public int PeakCount { get; private set; }
     public int TrialSourceIndex { get; private set; }
     public int Seed { get; private set; }
@@ -155,6 +159,20 @@ public class SettingsManager
             Value = 0.9f,
             Min = 0f,
             Max = 1f,
+        });
+
+        SettingsList.Add(new BoolSetting
+        {
+            Name = "Use Message On Trial End",
+            Description = "Prints a message at the end of a trial based on whether the participant was successful or not.",
+            Value = true,
+        });
+
+        SettingsList.Add(new BoolSetting
+        {
+            Name = "Use Additional Information On Trial End Message",
+            Description = "(If using end message) Appends additional information to the end message about the stimulus value.",
+            Value = false,
         });
 
         SettingsList.Add(new FloatSetting
@@ -273,8 +291,24 @@ public class SettingsManager
         SettingsList.Add(new BoolSetting
         {
             Name = "Refresh Matrix Evolution",
-            Description = "(Matrix map only) Refreshes the minimap and 3D visualizer every tick to simulate time evolution. Note: May cause significant performance degradation.",
+            Description = "(Matrix map only) Refreshes the minimap and 3D visualizer every tick to simulate time evolution. Note: May cause severe performance degradation.",
             Value = false,
+        });
+
+        SettingsList.Add(new FloatSetting
+        {
+            Name = "Recall Length",
+            Description = "The length (in seconds) of the player path trail drawn on the minimap. 0 to disable.",
+            Value = 10f,
+            Min = 0f,
+            Max = 60f,
+        });
+
+        SettingsList.Add(new BoolSetting
+        {
+            Name = "Clear Trace On New Trial",
+            Description = "Clears the player trail drawn on the minimap on new trial",
+            Value = true,
         });
 
         SettingsList.Add(new IntegerSetting
@@ -315,6 +349,8 @@ public class SettingsManager
         MapWidth = GetSetting<FloatSetting>("Map Width")?.Value ?? 8.0f;
         TimeToSeek = GetSetting<FloatSetting>("Time To Seek")?.Value ?? 180.0f;
         SuccessThreshold = GetSetting<FloatSetting>("Success Threshold")?.Value ?? 0.9f;
+        UseMessageOnTrialEnd = GetSetting<BoolSetting>("Use Message On Trial End")?.Value ?? true;
+        UseAdditionalInformationOnTrialEndMessage = GetSetting<BoolSetting>("Use Additional Information On Trial End Message")?.Value ?? false;
         DataLogInterval = GetSetting<FloatSetting>("Data Log Interval")?.Value ?? 0.011f;
         BufferSizeBeforeWrite = GetSetting<IntegerSetting>("Buffer Size Before Write")?.Value ?? LogManager.MinBufferSize;
         EnablePause = GetSetting<BoolSetting>("Enable Pause")?.Value ?? false;
@@ -330,6 +366,8 @@ public class SettingsManager
         SigmaScale = GetSetting<FloatSetting>("Sigma Scale")?.Value ?? 1.0f;
         MapTypeIndex = GetSetting<EnumSetting>("Map Type")?.SelectedIndex ?? 0;
         RefreshMatrixEvolution = GetSetting<BoolSetting>("Refresh Matrix Evolution")?.Value ?? false;
+        RecallLength = GetSetting<FloatSetting>("Recall Length")?.Value ?? 10f;
+        ClearTraceOnNewTrial = GetSetting<BoolSetting>("Clear Trace On New Trial")?.Value ?? true;
         PeakCount = GetSetting<IntegerSetting>("Peak Count")?.Value ?? 3;
         TrialSourceIndex = GetSetting<EnumSetting>("Trial Source")?.SelectedIndex ?? 0;
         Seed = GetSetting<IntegerSetting>("Seed")?.Value ?? 11111111;

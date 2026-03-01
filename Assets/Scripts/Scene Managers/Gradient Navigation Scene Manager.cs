@@ -16,6 +16,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
     private int trialIndex;
     private int attemptsRemaining;
     private float timeRemaining;
+    private float trialSuccessState = -1;
     private bool trialComplete;
 
     // Current Trial Data
@@ -110,7 +111,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         {
             Debug.Log($"[Trial {trialIndex + 1}] Time expired.");
             AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
-            EndTrial();
+            EndTrial(9999f);
             return;
         }
 
@@ -174,7 +175,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
             // Setup Session Data
             startXZ = spec.SpawnXZ;
-            Vector2 targetXZ = AppManager.Instance.Stimulus.GetTargetPosition(); // Truth source from Stimulus
+            Vector2 targetXZ = AppManager.Instance.Stimulus.GetTargetPosition();
 
             AppManager.Instance.Session.MapType = StimulusManager.MapTypes[spec.MapTypeIndex];
             AppManager.Instance.Utilities.Minimap.RefreshMinimap();
@@ -187,6 +188,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
             attemptsRemaining = AppManager.Instance.Settings.ParticipantMaxTestCount;
             timeRemaining = AppManager.Instance.Settings.TimeToSeek;
             trialComplete = false;
+            trialSuccessState = -1;
 
             // Move Player to Start
             if (!AppManager.Instance.Session.IsVRMode)
@@ -207,6 +209,17 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
             // Clean up
             SetState(SessionDataManager.GameState.Idle);
+
+            if (AppManager.Instance.Settings.UseMessageOnTrialEnd)
+            {
+                string endStateMessage;
+                if (trialSuccessState < 0) endStateMessage = "ERROR_MESSAGE";
+                else if (trialSuccessState == 9999f) endStateMessage = "Trial Failed.\n(Out of Time)";
+                else if (trialSuccessState < AppManager.Instance.Settings.SuccessThreshold) endStateMessage = (AppManager.Instance.Settings.UseAdditionalInformationOnTrialEndMessage) ? $"Trial Failed\n(Stimulus: {trialSuccessState:F2})" : "Trial Failed";
+                else endStateMessage = (AppManager.Instance.Settings.UseAdditionalInformationOnTrialEndMessage) ? $"Trial Success!\n(Stimulus: {trialSuccessState:F2})" : "Trial Success!";
+                AppManager.Instance.Player.SetUIMessage(endStateMessage, Color.magenta, -1);
+                yield return new WaitForSeconds(1.5f);
+            }
         }
 
         // FINISH
@@ -348,7 +361,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         {
             Debug.Log($"[Trial {trialIndex + 1}] Success.");
             AppManager.Instance.Logger.LogEvent($"TRIAL_SUCCESS {trialIndex}");
-            EndTrial();
+            EndTrial(currentIntensity);
             return;
         }
 
@@ -358,7 +371,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         {
             Debug.Log($"[Trial {trialIndex + 1}] Failed (no attempts remaining).");
             AppManager.Instance.Logger.LogEvent($"TRIAL_FAIL {trialIndex}");
-            EndTrial();
+            EndTrial(currentIntensity);
             return;
         }
 
@@ -366,12 +379,13 @@ public class GradientNavigationSceneManager : MonoBehaviour
         AppManager.Instance.Logger.LogEvent($"TRIGGER_PRESS");
     }
 
-    private void EndTrial()
+    private void EndTrial(float success)
     {
         if (state != SessionDataManager.GameState.Trial) return;
 
         SetState(SessionDataManager.GameState.Idle);
         trialComplete = true;
+        trialSuccessState = success;
     }
 
     // ------------------------------------------------------------------------
@@ -397,7 +411,6 @@ public class GradientNavigationSceneManager : MonoBehaviour
             AppManager.Instance.Player.ToggleMovement();
 
         // Visual feedback
-        AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
         AppManager.Instance.Player.SetUIMessage("Paused", Color.white, -1);
         AppManager.Instance.Logger.LogEvent("PAUSED");
         if (adjustBlackscreen) AppManager.Instance.Player.EnableBlackscreen();

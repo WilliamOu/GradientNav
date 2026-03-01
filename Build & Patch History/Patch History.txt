@@ -2,6 +2,12 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.10.0 - Feb 28, 2026
+- Added an option to specify success feedback on trial completion.
+- Added an option to trace the user path on the minimap.
+- Replay System now reveals safety walls.
+- Fixed a bug where Pausing would shift the text box.
+
 Version 1.0.9.0 - Feb 28, 2026
 - Added the Matrix map option. 
 - Improved 3D Visualizer and Minimap performance for matrix evolution simulation.
