@@ -16,6 +16,7 @@ public class TrialSpec
     public List<PeakSpec> Peaks;
     public float? SigmaOverride;
     public List<float> SigmaOverrides = new();
+    public string MapFileName;
 }
 
 public enum TrialPlanMode
@@ -145,7 +146,7 @@ public class TrialManager : MonoBehaviour
             );
 
             peaks = null;
-            if (mapType == 3) // MultiPeak
+            if (mapType == 3 || mapType == 5)
             {
                 float mapRadius = Mathf.Min(width, length) / 2f;
                 int peaksSeed;
@@ -156,6 +157,12 @@ public class TrialManager : MonoBehaviour
                     peaksSeed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
 
                 peaks = MultiPeakSpecFactory.Create(peaksSeed, mapRadius, AppManager.Instance.Settings.PeakCount);
+            }
+
+            if (mapType == 6)
+            {
+                Debug.LogWarning("Matrix map type requires CSV (Map File Name). Falling back to Gaussian for random mode.");
+                mapType = 0;
             }
 
             t = StimulusManager.ComputePrimaryTarget(
@@ -209,6 +216,15 @@ public class TrialManager : MonoBehaviour
     }
 
     // --- Static Helpers ---
+    static string CsvEscape(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        if (s.Contains('"')) s = s.Replace("\"", "\"\"");
+        if (s.Contains(",") || s.Contains("\n") || s.Contains("\r"))
+            return $"\"{s}\"";
+        return s;
+    }
+
     private static List<string> SplitCsvLine(string line)
     {
         var result = new List<string>();
@@ -315,6 +331,7 @@ public class TrialManager : MonoBehaviour
         int cPeaks = Col("Peaks");
         int cSigma = Col("Sigma");
         int cSigmas = Col("Sigmas");
+        int cMapFileName = Col("Map File Name");
 
         if (cMapType < 0 || cSpawnX < 0 || cSpawnZ < 0)
             throw new Exception("CSV missing required columns.");
@@ -339,12 +356,6 @@ public class TrialManager : MonoBehaviour
 
             var peaks = ParsePeakList(Get(cPeaks));
 
-            if (mapType == 3 && (peaks == null || peaks.Count == 0))
-            {
-                Debug.LogWarning($"Skipping line {i + 1}: Multi-Peak requires Peaks.");
-                continue;
-            }
-
             float? sigmaOverride = null;
             if (cSigma >= 0 && TryParseFloat(Get(cSigma), out float sVal))
                 sigmaOverride = sVal;
@@ -358,6 +369,16 @@ public class TrialManager : MonoBehaviour
                 continue;
             }
 
+            string mapFileName = Get(cMapFileName).Trim().Trim('"');
+            if (string.IsNullOrWhiteSpace(mapFileName)) mapFileName = null;
+
+            bool isMatrix = (mapType == 6);
+            /*if (isMatrix && string.IsNullOrWhiteSpace(mapFileName))
+            {
+                Debug.LogWarning($"Skipping line {i + 1}: Matrix requires 'Map File Name'.");
+                continue;
+            }*/ 
+
             trials.Add(new TrialSpec
             {
                 MapTypeIndex = mapType,
@@ -367,7 +388,8 @@ public class TrialManager : MonoBehaviour
                 ExtraGoals = (goals.Count > 1) ? goals.Skip(1).ToList() : new List<Vector2>(),
                 Peaks = peaks,
                 SigmaOverride = sigmaOverride,
-                SigmaOverrides = sigmaOverrides
+                SigmaOverrides = sigmaOverrides,
+                MapFileName = mapFileName
             });
         }
         return trials;
@@ -378,7 +400,7 @@ public class TrialManager : MonoBehaviour
         var sb = new StringBuilder();
 
         // Header
-        sb.AppendLine("MapType,SpawnX,SpawnZ,CenterX,CenterZ,Goals,Peaks,Sigma,Sigmas");
+        sb.AppendLine("MapType,SpawnX,SpawnZ,CenterX,CenterZ,Goals,Peaks,Sigma,Sigmas,Map File Name");
 
         foreach (var t in trials)
         {
@@ -401,7 +423,7 @@ public class TrialManager : MonoBehaviour
                 var pList = new List<string>();
                 foreach (var p in t.Peaks)
                     pList.Add($"{p.Position.x:F2} {p.Position.y:F2} {p.Amplitude:F2}");
-                peaksStr = string.Join("|", pList); // Note: Pipe separator
+                peaksStr = string.Join("|", pList);
             }
 
             // Sigma(s)
@@ -413,7 +435,9 @@ public class TrialManager : MonoBehaviour
             if (t.SigmaOverrides != null && t.SigmaOverrides.Count > 0)
                 sigmasStr = string.Join("|", t.SigmaOverrides.Select(v => v.ToString("F2", CultureInfo.InvariantCulture)));
 
-            sb.AppendLine($"{typeStr},{t.SpawnXZ.x:F2},{t.SpawnXZ.y:F2},{t.CenterXZ.x:F2},{t.CenterXZ.y:F2},{goalsStr},{peaksStr},{sigmaStr},{sigmasStr}");
+            string mapFileStr = CsvEscape(t.MapFileName);
+
+            sb.AppendLine($"{typeStr},{t.SpawnXZ.x:F2},{t.SpawnXZ.y:F2},{t.CenterXZ.x:F2},{t.CenterXZ.y:F2},{goalsStr},{peaksStr},{sigmaStr},{sigmasStr},{mapFileStr}");
         }
 
         File.WriteAllText(path, sb.ToString());

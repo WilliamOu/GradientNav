@@ -30,6 +30,9 @@ public class GradientNavigationSceneManager : MonoBehaviour
     private bool allowRecenter = true;
     private List<TrialSpec> specList = new List<TrialSpec>();
 
+    // Only used for matrix evolution
+    private float _nextRefreshTime = 0f;
+
     private void Start()
     {
         // AppManager.Instance.Utilities.MapVisualizer.ToggleMap(true);
@@ -92,6 +95,14 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
         // Game Logic
         AppManager.Instance.Player.UpdateStimulusUI();
+        if (AppManager.Instance.Settings.RefreshMatrixEvolution && AppManager.Instance.Session.MapType == "Matrix")
+        {
+            float refreshInterval = AppManager.Instance.Session.TimeEvolutionSpeed;
+            if (Time.time < _nextRefreshTime) return;
+            _nextRefreshTime = Time.time + refreshInterval;
+
+            AppManager.Instance.Utilities.Minimap.RefreshMinimapFast();
+        }
 
         // Timer
         timeRemaining -= Time.deltaTime;
@@ -155,8 +166,10 @@ public class GradientNavigationSceneManager : MonoBehaviour
                 AppManager.Instance.Settings.MapLength,
                 spec.CenterXZ,
                 goalOverride: spec.GoalOverride,
+                multiPeakSpecs: spec.Peaks,
                 sigmaOverride: spec.SigmaOverride,
-                sigmaOverrides: spec.SigmaOverrides
+                sigmaOverrides: spec.SigmaOverrides,
+                mapFileName: spec.MapFileName
             );
 
             // Setup Session Data
@@ -233,7 +246,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
             goalOverride: spec.GoalOverride,
             multiPeakSpecs: spec.Peaks,
             sigmaOverride: spec.SigmaOverride,
-            sigmaOverrides: spec.SigmaOverrides
+            sigmaOverrides: spec.SigmaOverrides,
+            mapFileName: spec.MapFileName
         );
         AppManager.Instance.Session.MapType = StimulusManager.MapTypes[spec.MapTypeIndex];
         AppManager.Instance.Utilities.Minimap.RefreshMinimap();

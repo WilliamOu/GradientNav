@@ -1,7 +1,8 @@
-using UnityEngine;
-using System.Collections.Generic;
-using System.Linq;
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using UnityEngine;
 
 public interface IStimulusMap
 {
@@ -252,4 +253,247 @@ public class TorusMap : IStimulusMap
     // Returns the center of the ring.
     // NOTE: In data analysis, remember that for Type "Torus", the goal is a ring AROUND this point.
     public Vector2 GetPrimaryTarget() => center;
+}
+
+public class MatrixMap : IStimulusMap
+{
+    [Serializable]
+    private class MatrixMeta
+    {
+        public int formatVersion = 1;
+
+        public string dataFile = "data.bin";
+        public string dataEncoding = "u8_raw";
+
+        public int width = 0;
+        public int height = 0;
+        public int frames = 1;
+
+        public float scaleCm = 1f;
+
+        // Allowed:
+        // interp2D: "nearest" | "bilinear"
+        // interp3D: "none" | "linear"   (none = floor frame)
+        // frameMode: "clamp" | "loop"
+        public string interp2D = "nearest";
+        public string interp3D = "none";
+        public string frameMode = "clamp";
+
+        public float frameSeconds = 1f;
+
+        // Optional extras
+        public string outOfBounds = "zero";
+        public string timeSource = "unityTime";
+    }
+
+    private readonly Vector2 center;
+    private readonly string folderName;
+
+    private readonly int width;
+    private readonly int height;
+    private readonly int frames;
+
+    private readonly float cellSizeMeters;
+    private readonly float frameSeconds;
+
+    private readonly Interp2D interp2D;
+    private readonly Interp3D interp3D;
+    private readonly FrameMode frameMode;
+
+    private readonly byte[] data; // flat: frame-major, then y, then x
+
+    private bool valid = false;
+    private bool clockStarted;
+    private float t0;
+
+    private enum Interp2D { Nearest, Bilinear }
+    private enum Interp3D { None, Linear }
+    private enum FrameMode { Clamp, Loop }
+
+    public MatrixMap(Vector2 centerXZ, string mapFileName = null)
+    {
+        if (mapFileName == null) return;
+        valid = true;
+
+        center = centerXZ;
+        folderName = mapFileName;
+
+        if (string.IsNullOrWhiteSpace(folderName))
+            throw new ArgumentException("MatrixMap requires a non-empty mapFileName.");
+
+        string baseDir = Path.Combine(Application.persistentDataPath, "Matrices", folderName);
+        string metaPath = Path.Combine(baseDir, "meta.json");
+        if (!File.Exists(metaPath))
+            throw new FileNotFoundException($"Matrix meta.json not found: {metaPath}");
+
+        var metaJson = File.ReadAllText(metaPath);
+        var meta = JsonUtility.FromJson<MatrixMeta>(metaJson);
+        if (meta == null)
+            throw new Exception($"Failed to parse meta.json: {metaPath}");
+
+        // Validate / normalize meta
+        if (meta.width <= 0 || meta.height <= 0)
+            throw new Exception($"Invalid matrix dimensions in meta.json (width/height must be > 0). Folder: {baseDir}");
+        if (meta.frames <= 0) meta.frames = 1;
+
+        if (meta.scaleCm <= 0f)
+            throw new Exception($"Invalid scaleCm in meta.json (must be > 0). Folder: {baseDir}");
+
+        if (meta.frameSeconds <= 0f)
+            throw new Exception($"Invalid frameSeconds in meta.json (must be > 0). Folder: {baseDir}");
+
+        width = meta.width;
+        height = meta.height;
+        frames = meta.frames;
+
+        cellSizeMeters = meta.scaleCm / 100f;
+        frameSeconds = meta.frameSeconds;
+        AppManager.Instance.Session.TimeEvolutionSpeed = frameSeconds;
+
+        interp2D = ParseInterp2D(meta.interp2D);
+        interp3D = ParseInterp3D(meta.interp3D);
+        frameMode = ParseFrameMode(meta.frameMode);
+
+        if (!string.Equals(meta.dataEncoding, "u8_raw", StringComparison.OrdinalIgnoreCase))
+            throw new Exception($"Unsupported dataEncoding '{meta.dataEncoding}'. Only 'u8_raw' supported currently.");
+
+        string dataPath = Path.Combine(baseDir, string.IsNullOrWhiteSpace(meta.dataFile) ? "data.bin" : meta.dataFile);
+        if (!File.Exists(dataPath))
+            throw new FileNotFoundException($"Matrix data file not found: {dataPath}");
+
+        data = File.ReadAllBytes(dataPath);
+
+        long expected = (long)width * height * frames;
+        if (data.LongLength != expected)
+        {
+            throw new Exception(
+                $"Matrix data size mismatch in '{dataPath}'. Expected {expected} bytes " +
+                $"(width={width}, height={height}, frames={frames}), got {data.LongLength} bytes.");
+        }
+    }
+
+    public float Evaluate(Vector2 pos)
+    {
+        if (valid == false) return 0;
+        
+        if (!clockStarted)
+        {
+            clockStarted = true;
+            t0 = Time.time;
+        }
+
+        // World -> continuous grid coords
+        float dx = pos.x - center.x;
+        float dy = pos.y - center.y;
+
+        float gx = dx / cellSizeMeters + (width - 1) * 0.5f;
+        float gy = dy / cellSizeMeters + (height - 1) * 0.5f;
+
+        // Out of bounds -> 0
+        if (gx < 0f || gy < 0f || gx > (width - 1) || gy > (height - 1))
+            return 0f;
+
+        // Time -> frame coordinate
+        float elapsed = Time.time - t0;
+        float ft = elapsed / frameSeconds;
+        int baseFrame = Mathf.FloorToInt(ft);
+        float alpha = ft - baseFrame;
+
+        int f0 = ResolveFrame(baseFrame);
+        if (interp3D == Interp3D.None || frames == 1)
+        {
+            return Sample2D(gx, gy, f0);
+        }
+
+        int f1 = ResolveFrame(baseFrame + 1);
+        float a0 = Sample2D(gx, gy, f0);
+        float a1 = Sample2D(gx, gy, f1);
+        return Mathf.Lerp(a0, a1, Mathf.Clamp01(alpha));
+    }
+
+    public Vector2 GetPrimaryTarget() => center;
+
+    // -------------------------
+    // Sampling
+    // -------------------------
+
+    private float Sample2D(float gx, float gy, int frame)
+    {
+        if (interp2D == Interp2D.Nearest)
+        {
+            int x = Mathf.Clamp(Mathf.FloorToInt(gx + 0.5f), 0, width - 1);
+            int y = Mathf.Clamp(Mathf.FloorToInt(gy + 0.5f), 0, height - 1);
+            return ByteTo01(Read(frame, x, y));
+        }
+        else // Bilinear
+        {
+            int x0 = Mathf.Clamp(Mathf.FloorToInt(gx), 0, width - 1);
+            int y0 = Mathf.Clamp(Mathf.FloorToInt(gy), 0, height - 1);
+            int x1 = Mathf.Clamp(x0 + 1, 0, width - 1);
+            int y1 = Mathf.Clamp(y0 + 1, 0, height - 1);
+
+            float tx = gx - x0;
+            float ty = gy - y0;
+
+            float v00 = ByteTo01(Read(frame, x0, y0));
+            float v10 = ByteTo01(Read(frame, x1, y0));
+            float v01 = ByteTo01(Read(frame, x0, y1));
+            float v11 = ByteTo01(Read(frame, x1, y1));
+
+            float a = Mathf.Lerp(v00, v10, tx);
+            float b = Mathf.Lerp(v01, v11, tx);
+            return Mathf.Lerp(a, b, ty);
+        }
+    }
+
+    private byte Read(int frame, int x, int y)
+    {
+        // flat index: (frame * height + y) * width + x
+        int idx = (frame * height + y) * width + x;
+        return data[idx];
+    }
+
+    private static float ByteTo01(byte b) => b / 255f;
+
+    // -------------------------
+    // Frame resolution
+    // -------------------------
+
+    private int ResolveFrame(int frame)
+    {
+        if (frames <= 1) return 0;
+
+        if (frameMode == FrameMode.Clamp)
+        {
+            return Mathf.Clamp(frame, 0, frames - 1);
+        }
+
+        // Loop
+        int m = frames;
+        int r = frame % m;
+        if (r < 0) r += m;
+        return r;
+    }
+
+    // -------------------------
+    // Meta parsing helpers
+    // -------------------------
+
+    private static Interp2D ParseInterp2D(string s)
+    {
+        if (string.Equals(s, "bilinear", StringComparison.OrdinalIgnoreCase)) return Interp2D.Bilinear;
+        return Interp2D.Nearest;
+    }
+
+    private static Interp3D ParseInterp3D(string s)
+    {
+        if (string.Equals(s, "linear", StringComparison.OrdinalIgnoreCase)) return Interp3D.Linear;
+        return Interp3D.None; // none => floor frame (handled by baseFrame)
+    }
+
+    private static FrameMode ParseFrameMode(string s)
+    {
+        if (string.Equals(s, "loop", StringComparison.OrdinalIgnoreCase)) return FrameMode.Loop;
+        return FrameMode.Clamp;
+    }
 }

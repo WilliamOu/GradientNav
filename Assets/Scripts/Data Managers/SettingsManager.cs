@@ -52,8 +52,6 @@ public class SettingsManager
     public List<SettingDef> SettingsList = new List<SettingDef>();
 
     // Cached public values
-    // TODO: Add max and minimum intensity settings, and closeness check value (how close the current color has to be to the actual max brightness value)
-    // TODO: Add a setting enabling or disabling VR movement via controller
     public float MouseSensitivity { get; private set; }
     public bool EnableMouseX { get; private set; }
     public bool EnableMouseY { get; private set; }
@@ -76,6 +74,7 @@ public class SettingsManager
     public int TrialCount { get; private set; }
     public float SigmaScale { get; private set; }
     public int MapTypeIndex { get; private set; }
+    public bool RefreshMatrixEvolution { get; private set; }
     public int PeakCount { get; private set; }
     public int TrialSourceIndex { get; private set; }
     public int Seed { get; private set; }
@@ -193,7 +192,7 @@ public class SettingsManager
         SettingsList.Add(new BoolSetting
         {
             Name = "Enable Training",
-            Description = "(VR Only) enable the training phase before the study to instruct the participant.",
+            Description = "(VR Only) Enable the training phase before the study to instruct the participant.",
             Value = true,
         });
 
@@ -266,9 +265,16 @@ public class SettingsManager
         SettingsList.Add(new EnumSetting
         {
             Name = "Map Type",
-            Description = "The type of map used when generating with the Random (no seed) or Random (seeded) source types.",
+            Description = "Map used when generating the Random (no seed) or Random (seeded) source types. Note: Selecting Matrix here is undefined (use a CSV).",
             SelectedIndex = 0,
             Options = StimulusManager.MapTypes,
+        });
+
+        SettingsList.Add(new BoolSetting
+        {
+            Name = "Refresh Matrix Evolution",
+            Description = "(Matrix map only) Refreshes the minimap and 3D visualizer every tick to simulate time evolution. Note: May cause significant performance degradation.",
+            Value = false,
         });
 
         SettingsList.Add(new IntegerSetting
@@ -323,6 +329,7 @@ public class SettingsManager
         TrialCount = GetSetting<IntegerSetting>("Trial Count")?.Value ?? 3;
         SigmaScale = GetSetting<FloatSetting>("Sigma Scale")?.Value ?? 1.0f;
         MapTypeIndex = GetSetting<EnumSetting>("Map Type")?.SelectedIndex ?? 0;
+        RefreshMatrixEvolution = GetSetting<BoolSetting>("Refresh Matrix Evolution")?.Value ?? false;
         PeakCount = GetSetting<IntegerSetting>("Peak Count")?.Value ?? 3;
         TrialSourceIndex = GetSetting<EnumSetting>("Trial Source")?.SelectedIndex ?? 0;
         Seed = GetSetting<IntegerSetting>("Seed")?.Value ?? 11111111;

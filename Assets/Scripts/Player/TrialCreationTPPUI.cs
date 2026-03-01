@@ -2,13 +2,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using TMPro;          // Assuming TextMeshPro for modern UI
-using Unity.VisualScripting;
-using UnityEditor.Experimental.GraphView;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI; // For standard UI
+using UnityEngine.UI;
 
 public class TrialCreationTPPUI : MonoBehaviour
 {
@@ -46,6 +44,9 @@ public class TrialCreationTPPUI : MonoBehaviour
     [SerializeField] private TMP_InputField peakCountGenInput; // For random gen
     [SerializeField] private Button generatePeaksBtn;
 
+    [SerializeField] private GameObject matrixContainer;
+    [SerializeField] private TMP_InputField mapFileNameInput;
+
     [Header("Settings")]
     [SerializeField] private Button toggleMapBoundsBtn;
     private bool mapBoundsToggled = false;
@@ -55,6 +56,9 @@ public class TrialCreationTPPUI : MonoBehaviour
     private string currentFilePath;
     private int activeTrialIndex = -1;
     private bool uiIsUpdating = false; // Prevent infinite loops
+
+    // Only used for matrix evolution
+    private float _nextRefreshTime = 0f;
 
     private void OnEnable()
     {
@@ -102,17 +106,30 @@ public class TrialCreationTPPUI : MonoBehaviour
 
         toggleMapBoundsBtn.onClick.AddListener(ToggleMapBounds);
 
+        if (mapFileNameInput != null) mapFileNameInput.onEndEdit.AddListener(_ => PushUiToData());
+
         if (playerController != null)
         {
-            // Subscribe
-            playerController.OnFreezeStateChanged += HandleFreeze;
-
             HandleFreeze(playerController.IsFrozen);
         }
         // if (panel != null) panel.SetActive(false);
         AppManager.Instance.Utilities.MapVisualizer.ToggleMap(true);
         AppManager.Instance.Utilities.Minimap.ManualUpdate(outOfBoundsLocation);
         AppManager.Instance.Utilities.Minimap.gameObject.SetActive(true);
+    }
+
+    // Rip performance
+    private void Update()
+    {
+        if (!AppManager.Instance.Settings.RefreshMatrixEvolution) return;
+        if (AppManager.Instance.Session.MapType != "Matrix") return;
+
+        float refreshInterval = AppManager.Instance.Session.TimeEvolutionSpeed; 
+        if (Time.time < _nextRefreshTime) return;
+        _nextRefreshTime = Time.time + refreshInterval;
+
+        AppManager.Instance.Utilities.Minimap.RefreshMinimapFast();
+        AppManager.Instance.Utilities.MapVisualizer.UpdateMeshValuesOnly();
     }
 
     private void OnDestroy()
@@ -180,6 +197,8 @@ public class TrialCreationTPPUI : MonoBehaviour
         // Hide sub-menus
         if (centerContainer != null) centerContainer.SetActive(false);
         if (multiPeakContainer != null) multiPeakContainer.SetActive(false);
+        if (mapFileNameInput != null) mapFileNameInput.text = "";
+        if (matrixContainer != null) matrixContainer.SetActive(false);
     }
 
     private void LoadFile(string path)
@@ -240,8 +259,6 @@ public class TrialCreationTPPUI : MonoBehaviour
             Debug.LogWarning("Cannot save: No file path selected.");
             return;
         }
-
-        TrialManager.SaveTrialsToCsv(currentFilePath, currentTrials);
 
         if (string.IsNullOrEmpty(currentFilePath)) return;
         TrialManager.SaveTrialsToCsv(currentFilePath, currentTrials);
@@ -339,6 +356,8 @@ public class TrialCreationTPPUI : MonoBehaviour
         mapTypeDropdown.AddOptions(StimulusManager.MapTypes);
         mapTypeDropdown.value = spec.MapTypeIndex;
 
+        if (mapFileNameInput != null) mapFileNameInput.text = spec.MapFileName ?? "";
+
         if (spec.MapTypeIndex == 5)
         {
             // Show list like: "0.50 | 0.80 | 1.20"
@@ -371,8 +390,16 @@ public class TrialCreationTPPUI : MonoBehaviour
 
         // Container Visibility
         bool isMultiPeak = (spec.MapTypeIndex == 3 || spec.MapTypeIndex == 5);
-        multiPeakContainer.SetActive(isMultiPeak);
-        centerContainer.SetActive(!isMultiPeak);
+        bool isMatrix = (spec.MapTypeIndex == 6);
+
+        if (multiPeakContainer != null) multiPeakContainer.SetActive(isMultiPeak);
+        if (centerContainer != null) centerContainer.SetActive(!isMultiPeak && !isMatrix);
+        if (matrixContainer != null) matrixContainer.SetActive(isMatrix);
+
+        // Enable peak randomize only for multi-peak
+        if (generatePeaksBtn != null) generatePeaksBtn.interactable = isMultiPeak;
+        if (peaksInput != null) peaksInput.interactable = isMultiPeak;
+        if (peakCountGenInput != null) peakCountGenInput.interactable = isMultiPeak;
 
         uiIsUpdating = false;
     }
@@ -430,17 +457,27 @@ public class TrialCreationTPPUI : MonoBehaviour
             }
         }
 
+        // Matrix Parsing
+        if (mapFileNameInput != null)
+        {
+            if (spec.MapTypeIndex == 6)
+                spec.MapFileName = string.IsNullOrWhiteSpace(mapFileNameInput.text) ? null : mapFileNameInput.text.Trim();
+            else
+                spec.MapFileName = null;
+        }
+
         // Update Name in dropdown
         var options = trialSelectorDropdown.options;
         options[activeTrialIndex].text = $"Trial {activeTrialIndex + 1} ({StimulusManager.MapTypes[spec.MapTypeIndex]})";
         trialSelectorDropdown.RefreshShownValue();
 
-        // Refresh Visibility
         bool isMultiPeak = (spec.MapTypeIndex == 3 || spec.MapTypeIndex == 5);
-        multiPeakContainer.SetActive(isMultiPeak);
-        centerContainer.SetActive(!isMultiPeak);
+        bool isMatrix = (spec.MapTypeIndex == 6);
 
-        // Enable randomize + peaks UI for both 3 and 5
+        if (multiPeakContainer != null) multiPeakContainer.SetActive(isMultiPeak);
+        if (centerContainer != null) centerContainer.SetActive(!isMultiPeak && !isMatrix);
+        if (matrixContainer != null) matrixContainer.SetActive(isMatrix);
+
         if (generatePeaksBtn != null) generatePeaksBtn.interactable = isMultiPeak;
         if (peaksInput != null) peaksInput.interactable = isMultiPeak;
         if (peakCountGenInput != null) peakCountGenInput.interactable = isMultiPeak;
@@ -489,8 +526,11 @@ public class TrialCreationTPPUI : MonoBehaviour
             spec.GoalOverride,
             spec.Peaks,
             sigmaOverride: spec.SigmaOverride,
-            sigmaOverrides: spec.SigmaOverrides
+            sigmaOverrides: spec.SigmaOverrides,
+            mapFileName: spec.MapFileName
         );
+
+        AppManager.Instance.Session.MapType = StimulusManager.MapTypes[spec.MapTypeIndex];
 
         // Now tell the visualizer to redraw the mesh
         AppManager.Instance.Utilities.MapVisualizer.UpdateMeshGeometry();

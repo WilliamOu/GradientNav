@@ -17,6 +17,20 @@ public class Map3DVisualizer : MonoBehaviour
     private MeshRenderer meshRenderer;
     private Mesh mesh;
 
+    private Vector3[] _vertices;
+    private Color[] _colors;
+    private Vector2[] _uvs;
+    private int[] _triangles;
+
+    private int _xRes;
+    private int _zRes;
+
+    private float _builtWidth = -1f;
+    private float _builtLength = -1f;
+    private int _builtMeshResolution = -1;
+
+    private bool _meshBuilt;
+
     // Call this from your Game Manager or UI button
     public void ToggleMap(bool state)
     {
@@ -30,7 +44,7 @@ public class Map3DVisualizer : MonoBehaviour
 
             // If we already have it, just ensure it's on and updated
             visualizationObj.SetActive(true);
-            UpdateMeshGeometry(); // Optional: Refresh in case map params changed while hidden
+            UpdateMeshGeometry();
         }
         else
         {
@@ -72,14 +86,18 @@ public class Map3DVisualizer : MonoBehaviour
 
     public void UpdateMeshGeometry(float mapWidth = -1, float mapLength = -1)
     {
+        EnsureMeshBuilt(mapWidth, mapLength);
+        UpdateMeshValuesOnly();
+    }
+
+    public void EnsureMeshBuilt(float mapWidth = -1, float mapLength = -1)
+    {
         if (mesh == null) return;
 
-        // Gather Settings
         mapWidth = (mapWidth == -1) ? AppManager.Instance.Settings.MapWidth : mapWidth;
         mapLength = (mapLength == -1) ? AppManager.Instance.Settings.MapLength : mapLength;
 
-        // Determine step size to keep quads square-ish
-        // We use the same resolution for the longest side
+        // Compute xRes/zRes exactly like you do now
         float aspectRatio = mapWidth / mapLength;
 
         int xRes, zRes;
@@ -94,10 +112,26 @@ public class Map3DVisualizer : MonoBehaviour
             xRes = Mathf.RoundToInt(meshResolution * aspectRatio);
         }
 
-        // Generate Vertices & Colors
-        Vector3[] vertices = new Vector3[(xRes + 1) * (zRes + 1)];
-        Color[] colors = new Color[vertices.Length];
-        Vector2[] uvs = new Vector2[vertices.Length];
+        bool needsRebuild =
+            !_meshBuilt ||
+            xRes != _xRes ||
+            zRes != _zRes ||
+            !Mathf.Approximately(mapWidth, _builtWidth) ||
+            !Mathf.Approximately(mapLength, _builtLength) ||
+            meshResolution != _builtMeshResolution;
+
+        if (!needsRebuild) return;
+
+        _xRes = xRes;
+        _zRes = zRes;
+        _builtWidth = mapWidth;
+        _builtLength = mapLength;
+        _builtMeshResolution = meshResolution;
+
+        int vertCount = (xRes + 1) * (zRes + 1);
+        _vertices = new Vector3[vertCount];
+        _colors = new Color[vertCount];
+        _uvs = new Vector2[vertCount];
 
         float halfWidth = mapWidth / 2f;
         float halfLength = mapLength / 2f;
@@ -108,29 +142,19 @@ public class Map3DVisualizer : MonoBehaviour
             {
                 int i = z * (xRes + 1) + x;
 
-                // Normalized coordinates (0 to 1)
                 float u = x / (float)xRes;
                 float v = z / (float)zRes;
 
-                // World position (Centered at 0,0 like your Minimap)
                 float worldX = Mathf.Lerp(-halfWidth, halfWidth, u);
                 float worldZ = Mathf.Lerp(-halfLength, halfLength, v);
 
-                // Query the Stimulus Manager
-                // Note: GetIntensity usually takes Vector3 worldPos
-                float intensity = AppManager.Instance.Stimulus.GetIntensity(new Vector3(worldX, 0, worldZ));
-
-                // Apply Height
-                float yPos = intensity * heightMultiplier;
-
-                vertices[i] = new Vector3(worldX, yPos, worldZ);
-                colors[i] = heatGradient.Evaluate(intensity);
-                uvs[i] = new Vector2(u, v);
+                _vertices[i] = new Vector3(worldX, 0f, worldZ); // y updated later
+                _uvs[i] = new Vector2(u, v);
+                _colors[i] = Color.black;
             }
         }
 
-        // Generate Triangles
-        int[] triangles = new int[xRes * zRes * 6];
+        _triangles = new int[xRes * zRes * 6];
         int triIndex = 0;
 
         for (int z = 0; z < zRes; z++)
@@ -139,34 +163,56 @@ public class Map3DVisualizer : MonoBehaviour
             {
                 int i = z * (xRes + 1) + x;
 
-                // Quad vertex indices
                 int bl = i;
                 int br = i + 1;
                 int tl = i + (xRes + 1);
                 int tr = i + (xRes + 1) + 1;
 
-                // First triangle
-                triangles[triIndex] = bl;
-                triangles[triIndex + 1] = tl;
-                triangles[triIndex + 2] = br;
+                _triangles[triIndex++] = bl;
+                _triangles[triIndex++] = tl;
+                _triangles[triIndex++] = br;
 
-                // Second triangle
-                triangles[triIndex + 3] = br;
-                triangles[triIndex + 4] = tl;
-                triangles[triIndex + 5] = tr;
-
-                triIndex += 6;
+                _triangles[triIndex++] = br;
+                _triangles[triIndex++] = tl;
+                _triangles[triIndex++] = tr;
             }
         }
 
-        // Apply to Mesh
+        // Apply static parts once
         mesh.Clear();
-        mesh.vertices = vertices;
-        mesh.colors = colors;
-        mesh.uv = uvs;
-        mesh.triangles = triangles;
+        mesh.vertices = _vertices;
+        mesh.uv = _uvs;
+        mesh.triangles = _triangles;
+        mesh.colors = _colors;
 
+        // Do normals once at build time (or not at all if using unlit)
         mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+
+        _meshBuilt = true;
+    }
+
+    public void UpdateMeshValuesOnly()
+    {
+        if (mesh == null || !_meshBuilt || _vertices == null) return;
+
+        for (int i = 0; i < _vertices.Length; i++)
+        {
+            float worldX = _vertices[i].x;
+            float worldZ = _vertices[i].z;
+
+            float intensity = AppManager.Instance.Stimulus.GetIntensity(new Vector3(worldX, 0, worldZ));
+            _vertices[i].y = intensity * heightMultiplier;
+            _colors[i] = heatGradient.Evaluate(intensity);
+        }
+
+        mesh.vertices = _vertices;
+        mesh.colors = _colors;
+
+        // For dynamic mode, skip normals. If you must have them, update rarely.
+        // _mesh.RecalculateNormals();
+
+        // Bounds can be skipped too if you set generous bounds once.
         mesh.RecalculateBounds();
     }
 }

@@ -2,6 +2,11 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.9.0 - Feb 28, 2026
+- Added the Matrix map option. 
+- Improved 3D Visualizer and Minimap performance for matrix evolution simulation.
+- Slight adjustments to data logging naming scheme.
+
 Version 1.0.8.2 - Feb 24, 2026
 - Fixed inverted rotation scheme for the Shadow Mocap System. 
 

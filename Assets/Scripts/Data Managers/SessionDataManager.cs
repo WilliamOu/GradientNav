@@ -16,6 +16,7 @@ public class SessionDataManager
     public Vector2 SpawnPosition = Vector2.zero;
     public Vector2 GoalPosition = Vector2.zero;
     public GameState State = GameState.Idle;
+    public float TimeEvolutionSpeed = 0.1f;
 
     // Getters enforce session start or will throw an exception
     // Getters can be found at the bottom of the script
@@ -69,13 +70,13 @@ public class SessionDataManager
     {
         EnsureSessionStarted();
 
-        // 1. Root folder
+        // Root folder
         string root = Path.Combine(Application.persistentDataPath, "Participant Data Log CSVs");
 
-        // 2. Participant ID folder
+        // Participant ID folder
         string participantFolder = Path.Combine(root, participantName);
 
-        // 3. Create if missing (Safe to call repeatedly)
+        // Create if missing (Safe to call repeatedly)
         if (!Directory.Exists(participantFolder))
         {
             Directory.CreateDirectory(participantFolder);
@@ -89,8 +90,7 @@ public class SessionDataManager
         EnsureSessionStarted();
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
-        // C# automatically converts Enum to string
-        return $"{participantId}_{currentGameMode.ToString()}_{timestamp}";
+        return $"Replay_{participantName}_{participantId}_{currentGameMode.ToString()}_{timestamp}";
     }
 
     public bool IsVRMode => currentSession == SessionType.VR;

@@ -36,7 +36,7 @@ public static class MultiPeakSpecFactory
 public class StimulusManager : MonoBehaviour
 {
     private Vector2? activeGoalOverride;
-    public static readonly List<string> MapTypes = new List<string> { "Gaussian", "Linear", "Inverse", "Multi-Peak", "Torus", "Linear Multi-Peak" };
+    public static readonly List<string> MapTypes = new List<string> { "Gaussian", "Linear", "Inverse", "Multi-Peak", "Torus", "Linear Multi-Peak", "Matrix" };
     private IStimulusMap currentMap;
 
     public void GenerateMap(
@@ -47,7 +47,8 @@ public class StimulusManager : MonoBehaviour
         Vector2? goalOverride = null,
         IReadOnlyList<PeakSpec> multiPeakSpecs = null,
         float? sigmaOverride = null,
-        IReadOnlyList<float> sigmaOverrides = null
+        IReadOnlyList<float> sigmaOverrides = null,
+        string mapFileName = null
     )
     {
         activeGoalOverride = goalOverride;
@@ -61,9 +62,8 @@ public class StimulusManager : MonoBehaviour
             case 2: currentMap = new InverseMap(centerOffset, mapRadius, finalSigma); break;
             case 3: currentMap = new MultiPeakMap(mapRadius, finalSigma, multiPeakSpecs); break;
             case 4: currentMap = new TorusMap(centerOffset, mapRadius, finalSigma); break;
-            case 5:
-                currentMap = new LinearMultiPeakMap(mapRadius, sigmaOverrides, multiPeakSpecs);
-                break;
+            case 5: currentMap = new LinearMultiPeakMap(mapRadius, sigmaOverrides, multiPeakSpecs); break;
+            case 6: currentMap = new MatrixMap(centerOffset, mapFileName); break;
             default: currentMap = new GaussianMap(centerOffset, mapRadius, finalSigma); break;
         }
 

@@ -1,0 +1,20 @@
+﻿{
+  "formatVersion": 1,
+
+  "dataFile": "data.bin",
+  "dataEncoding": "u8_raw",
+
+  "width": 21,
+  "height": 21,
+  "frames": 25,
+
+  "scaleCm": 40,
+
+  "interp2D": "nearest",
+  "interp3D": "linear",
+  "frameSeconds": 0.1,
+
+  "frameMode": "loop",
+  "outOfBounds": "zero",
+  "timeSource": "unityTime"
+}
