@@ -81,6 +81,8 @@ public class ReplayManager : MonoBehaviour
     private TextMesh[] dotLabels;
     private Transform xriHead, xriLeft, xriRight;
     private Vector3 currentGazeOrigin, currentGazeDir;
+    private LineRenderer headRayRenderer;
+    private LineRenderer gazeRayRenderer;
 
     // --- Bone IDs ---
     private const int ShadowBoneCount = 17;
@@ -199,8 +201,10 @@ public class ReplayManager : MonoBehaviour
             ApplyShadowRotation();
             UpdateLabels();
             if (drawSkeletonLines) DrawSkeleton();
-            DrawDebugGizmos();
         }
+
+        // DrawDebugGizmos();
+        UpdateRays();
     }
 
     // --- Core Logic ---
@@ -442,6 +446,9 @@ public class ReplayManager : MonoBehaviour
         xriHead = CreateProxy("XRI_Head", 0.15f);
         xriLeft = CreateProxy("XRI_L", 0.08f);
         xriRight = CreateProxy("XRI_R", 0.08f);
+
+        headRayRenderer = CreateLineRenderer("Head_Ray", new Color(120, 120, 120), 1, 0.8f);
+        gazeRayRenderer = CreateLineRenderer("Gaze_Ray", Color.green, 2, 1f);
     }
 
     private Transform CreateProxy(string name, float scale)
@@ -471,10 +478,79 @@ public class ReplayManager : MonoBehaviour
 
     private void DrawDebugGizmos()
     {
-        if (currentGazeDir != Vector3.zero && xriHead != null)
+        if (xriHead != null)
+        {
+            Debug.DrawRay(xriHead.position, xriHead.forward * 1f, Color.blue);
+        }
+
+        if (currentGazeDir != Vector3.zero)
         {
             Debug.DrawRay(currentGazeOrigin, currentGazeDir * 2f, Color.green);
-            Debug.DrawRay(xriHead.position, xriHead.forward * 1f, Color.blue);
+        }
+    }
+
+    private LineRenderer CreateLineRenderer(string name, Color color, int priority, float widthMultiplier = 1f)
+    {
+        GameObject go = new GameObject(name);
+        // Parent it to shadowRoot so it cleans up when streams close
+        go.transform.SetParent(shadowRoot);
+
+        LineRenderer lr = go.AddComponent<LineRenderer>();
+        lr.positionCount = 2;
+        lr.startWidth = 0.01f * widthMultiplier;
+        lr.endWidth = 0.01f * widthMultiplier;
+        lr.useWorldSpace = true;
+
+        // Using a default unlit shader so the colors pop
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.startColor = color;
+        lr.endColor = color;
+        lr.sortingOrder = priority;
+
+        return lr;
+    }
+
+    private void UpdateRays()
+    {
+        float maxDistance = 50f;
+        int layerMask = ~0;
+
+        // Update Head Forward Vector
+        if (xriHead != null && headRayRenderer != null)
+        {
+            headRayRenderer.SetPosition(0, xriHead.position);
+
+            if (Physics.Raycast(xriHead.position, xriHead.forward, out RaycastHit hit, maxDistance, layerMask))
+            {
+                headRayRenderer.SetPosition(1, hit.point);
+            }
+            else
+            {
+                headRayRenderer.SetPosition(1, xriHead.position + xriHead.forward * maxDistance);
+            }
+        }
+
+        // Update Gaze Vector
+        if (gazeRayRenderer != null)
+        {
+            if (currentGazeDir != Vector3.zero)
+            {
+                gazeRayRenderer.enabled = true;
+                gazeRayRenderer.SetPosition(0, currentGazeOrigin);
+
+                if (Physics.Raycast(currentGazeOrigin, currentGazeDir, out RaycastHit gazeHit, maxDistance, layerMask))
+                {
+                    gazeRayRenderer.SetPosition(1, gazeHit.point);
+                }
+                else
+                {
+                    gazeRayRenderer.SetPosition(1, currentGazeOrigin + (currentGazeDir.normalized * maxDistance));
+                }
+            }
+            else
+            {
+                gazeRayRenderer.enabled = false;
+            }
         }
     }
 
