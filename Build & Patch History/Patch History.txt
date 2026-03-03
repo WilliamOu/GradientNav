@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.12.3 - March 3, 2026
+- Fixed improper UI element alignment for the Three Perspective Camera Controls in non 16:9 aspect ratios.
+
 Version 1.0.12.2 - March 3, 2026
 - Fixed a Null Reference Error caused by an unassigned Replay Selection Manager in the Zip Import Manager script.
 

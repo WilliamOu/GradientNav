@@ -48,7 +48,6 @@ public class ZipImportManager : MonoBehaviour
 #if UNITY_WEBGL && !UNITY_EDITOR
         // WebGL: open browser file picker
         WebGL_OpenZipPicker();
-        replaySelectionManager.RefreshDropdown();
         return;
 #endif
 
@@ -63,7 +62,6 @@ public class ZipImportManager : MonoBehaviour
             return;
         }
         StartCoroutine(ImportZipFromDiskPathCoroutine(path));
-        replaySelectionManager.RefreshDropdown();
         return;*/
 #else
         // Standalone runtime: no built-in file picker without plugins.
@@ -83,7 +81,6 @@ public class ZipImportManager : MonoBehaviour
             return;
         }
         StartCoroutine(ImportZipFromDiskPathCoroutine(runtimePath));
-        replaySelectionManager.RefreshDropdown();
         return;*/
 #endif
     }
@@ -143,6 +140,9 @@ public class ZipImportManager : MonoBehaviour
         }
 
         SetStatus("Import complete.\nRoot: " + importRoot);
+
+        replaySelectionManager.RefreshDropdown();
+
         yield return null;
     }
 
