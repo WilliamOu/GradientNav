@@ -2,6 +2,13 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.12.0 - March 3, 2026
+- Fixed a bug where the Gradient Navigation Scene Manager would improperly record stale orientation beacon XZ coordinates during the training step. 
+- Modernized eye tracking code to use the OpenXR Input Action System.
+- Adjusted the Three Perspective Camera to adjust camera rotation when recentering.
+- Spacebar to pause/unpause in the Replay Scene is now disabled in the First Person view to prevent overload with the jump/fly input.
+- Added UI elements to the Three Perspective Camera with keybinds. 
+
 Version 1.0.11.0 - March 1, 2026
 - Updated the gaze and head vector renderers in the Replay Scene to use LineRenderers instead of Gizmos, allowing them to render in the game view.
 - Adjusted build target to WebGL for cloud/web accessible variant of the study.

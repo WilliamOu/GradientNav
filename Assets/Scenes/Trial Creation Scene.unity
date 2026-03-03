@@ -3442,147 +3442,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 749324703}
   m_CullTransparentMesh: 1
---- !u!1 &752736910
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 752736914}
-  - component: {fileID: 752736913}
-  - component: {fileID: 752736912}
-  - component: {fileID: 752736911}
-  - component: {fileID: 752736915}
-  m_Layer: 5
-  m_Name: Canvas
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &752736911
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 752736910}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dc42784cf147c0c48a680349fa168899, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_IgnoreReversedGraphics: 1
-  m_BlockingObjects: 0
-  m_BlockingMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
---- !u!114 &752736912
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 752736910}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_UiScaleMode: 1
-  m_ReferencePixelsPerUnit: 100
-  m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 1920, y: 1080}
-  m_ScreenMatchMode: 0
-  m_MatchWidthOrHeight: 0
-  m_PhysicalUnit: 3
-  m_FallbackScreenDPI: 96
-  m_DefaultSpriteDPI: 96
-  m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
---- !u!223 &752736913
-Canvas:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 752736910}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_RenderMode: 0
-  m_Camera: {fileID: 0}
-  m_PlaneDistance: 100
-  m_PixelPerfect: 0
-  m_ReceivesEvents: 1
-  m_OverrideSorting: 0
-  m_OverridePixelPerfect: 0
-  m_SortingBucketNormalizedSize: 0
-  m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 25
-  m_UpdateRectTransformForStandalone: 0
-  m_SortingLayerID: 0
-  m_SortingOrder: 0
-  m_TargetDisplay: 0
---- !u!224 &752736914
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 752736910}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 989830287}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0, y: 0}
---- !u!114 &752736915
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 752736910}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 81e54ecb69328384592e3014ed95dc7e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  playerController: {fileID: 1010570407}
-  fileDropdown: {fileID: 1614042857}
-  newFileNameInput: {fileID: 1616953351}
-  createNewFileBtn: {fileID: 760601838}
-  dupeFileBtn: {fileID: 971442353}
-  saveFileBtn: {fileID: 387610618}
-  backBtn: {fileID: 808429351}
-  panel: {fileID: 989830286}
-  outOfBoundsLocation: {fileID: 1163900019}
-  trialSelectorDropdown: {fileID: 302536695}
-  addTrialBtn: {fileID: 403748000}
-  removeTrialBtn: {fileID: 52927780}
-  duplicateTrialBtn: {fileID: 1578184283}
-  mapTypeDropdown: {fileID: 712585376}
-  sigmaInput: {fileID: 1963639827}
-  spawnInput: {fileID: 591950917}
-  goalInput: {fileID: 1805917966}
-  centerContainer: {fileID: 350019835}
-  centerInput: {fileID: 1292861381}
-  multiPeakContainer: {fileID: 2142096464}
-  peaksInput: {fileID: 198916030}
-  peakCountGenInput: {fileID: 1418134567}
-  generatePeaksBtn: {fileID: 569361948}
-  matrixContainer: {fileID: 1779251987}
-  mapFileNameInput: {fileID: 1283757595}
-  toggleMapBoundsBtn: {fileID: 94758918}
 --- !u!1 &752970189
 GameObject:
   m_ObjectHideFlags: 0
@@ -4973,7 +4832,7 @@ RectTransform:
   - {fileID: 350019836}
   - {fileID: 1779251988}
   - {fileID: 1163900019}
-  m_Father: {fileID: 752736914}
+  m_Father: {fileID: 1010570408}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -5209,8 +5068,14 @@ PrefabInstance:
     m_RemovedComponents:
     - {fileID: 3287249509793844344, guid: 0aa1a99ecab7b5246a9d83abe9ea0931, type: 3}
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 191946922002454451, guid: 0aa1a99ecab7b5246a9d83abe9ea0931, type: 3}
+      insertIndex: 0
+      addedObject: {fileID: 989830287}
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2400087674161599206, guid: 0aa1a99ecab7b5246a9d83abe9ea0931, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1010570410}
   m_SourcePrefab: {fileID: 100100000, guid: 0aa1a99ecab7b5246a9d83abe9ea0931, type: 3}
 --- !u!114 &1010570407 stripped
 MonoBehaviour:
@@ -5223,6 +5088,54 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2992aef4ff9ad3445bbd8deee0e85c80, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!224 &1010570408 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 191946922002454451, guid: 0aa1a99ecab7b5246a9d83abe9ea0931, type: 3}
+  m_PrefabInstance: {fileID: 1010570406}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1010570409 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2400087674161599206, guid: 0aa1a99ecab7b5246a9d83abe9ea0931, type: 3}
+  m_PrefabInstance: {fileID: 1010570406}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1010570410
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1010570409}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 81e54ecb69328384592e3014ed95dc7e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerController: {fileID: 1010570407}
+  fileDropdown: {fileID: 1614042857}
+  newFileNameInput: {fileID: 1616953351}
+  createNewFileBtn: {fileID: 760601838}
+  dupeFileBtn: {fileID: 971442353}
+  saveFileBtn: {fileID: 387610618}
+  backBtn: {fileID: 808429351}
+  panel: {fileID: 989830286}
+  outOfBoundsLocation: {fileID: 1163900019}
+  trialSelectorDropdown: {fileID: 302536695}
+  addTrialBtn: {fileID: 403748000}
+  removeTrialBtn: {fileID: 52927780}
+  duplicateTrialBtn: {fileID: 1578184283}
+  mapTypeDropdown: {fileID: 712585376}
+  sigmaInput: {fileID: 1963639827}
+  spawnInput: {fileID: 591950917}
+  goalInput: {fileID: 1805917966}
+  centerContainer: {fileID: 350019835}
+  centerInput: {fileID: 1292861381}
+  multiPeakContainer: {fileID: 2142096464}
+  peaksInput: {fileID: 198916030}
+  peakCountGenInput: {fileID: 1418134567}
+  generatePeaksBtn: {fileID: 569361948}
+  matrixContainer: {fileID: 1779251987}
+  mapFileNameInput: {fileID: 1283757595}
+  toggleMapBoundsBtn: {fileID: 94758918}
 --- !u!1 &1018950214
 GameObject:
   m_ObjectHideFlags: 0
@@ -10924,6 +10837,5 @@ SceneRoots:
   - {fileID: 591825371}
   - {fileID: 1501540754}
   - {fileID: 1010570406}
-  - {fileID: 752736914}
   - {fileID: 1431382638}
   - {fileID: 1867305124}

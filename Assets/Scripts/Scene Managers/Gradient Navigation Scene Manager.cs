@@ -464,6 +464,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
     {
         if (!AppManager.Instance.Session.IsVRMode) yield break;
 
+        AppManager.Instance.Session.SpawnPosition = xz;
+
         SetState(SessionDataManager.GameState.Orient);
         AppManager.Instance.Logger.LogEvent($"ORIENTATION_START {trialIndex}");
 

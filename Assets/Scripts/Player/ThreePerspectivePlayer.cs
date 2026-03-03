@@ -236,7 +236,7 @@ public class ThreePerspectivePlayer : MonoBehaviour
         }
     }
 
-    private void SwitchBetweenEditAndBirdsEyeViewModes()
+    public void SwitchBetweenEditAndBirdsEyeViewModes()
     {
         if (CurrentMode == Mode.FirstPerson)
         {
@@ -363,7 +363,7 @@ public class ThreePerspectivePlayer : MonoBehaviour
         controller.enabled = true;
     }
 
-    private void SwitchBirdsEyeViewModes()
+    public void SwitchBirdsEyeViewModes()
     {
         if (CurrentMode == Mode.Isometric)
         {
@@ -380,8 +380,22 @@ public class ThreePerspectivePlayer : MonoBehaviour
         OnViewModeChanged?.Invoke(CurrentMode);
     }
 
-    // --- Coroutines & Helpers (Unchanged Logic, just formatting) ---
-    private void CenterCamera() { transform.position = birdEyeViewPosition; }
+    // --- Coroutines & Helpers ---
+    public void CenterCamera() {
+        // Disable controller temporarily to safely teleport
+        controller.enabled = false;
+
+        // Reset parent to default position and flat rotation
+        transform.position = birdEyeViewPosition;
+        transform.rotation = Quaternion.identity;
+
+        // Apply the correct pitch to the camera based on the current mode
+        float targetPitch = (CurrentMode == Mode.TopDown) ? 90f : cameraAngle;
+        mapCamera.transform.rotation = Quaternion.Euler(targetPitch, 0f, 0f);
+
+        // Re-enable controller
+        controller.enabled = true;
+    }
 
     private IEnumerator LerpBetweenBirdsEyeViews(float duration, float endRotationX)
     {
@@ -416,7 +430,7 @@ public class ThreePerspectivePlayer : MonoBehaviour
         mapCamera.transform.rotation = lastCameraRotation;
     }
 
-    private void RotateCamera(float angle, float duration)
+    public void RotateCamera(float angle, float duration)
     {
         if (rotateCoroutine != null) { StopCoroutine(rotateCoroutine); }
         float currentAngle = transform.rotation.eulerAngles.y;

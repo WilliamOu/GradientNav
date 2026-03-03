@@ -12,6 +12,8 @@ public class AppManager : MonoBehaviour
     public InputActionProperty RightActivate;
     public InputActionProperty LeftSelect;
     public InputActionProperty RightSelect;
+    public InputActionProperty EyeGazePositionAction;
+    public InputActionProperty EyeGazeRotationAction;
 
     public Material shadowDotMaterial;
     public Material xriProxyMaterial;

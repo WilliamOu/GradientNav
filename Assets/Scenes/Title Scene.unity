@@ -7248,6 +7248,30 @@ MonoBehaviour:
       m_SingletonActionBindings: []
       m_Flags: 0
     m_Reference: {fileID: -1758520528963094988, guid: c348712bda248c246b8c49b3db54643f, type: 3}
+  EyeGazePositionAction:
+    m_UseReference: 1
+    m_Action:
+      m_Name: Eye Gaze Position
+      m_Type: 0
+      m_ExpectedControlType: 
+      m_Id: bfcc3d81-876e-4aa9-80c3-c8c3c4876e44
+      m_Processors: 
+      m_Interactions: 
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_Reference: {fileID: 3220680263695665919, guid: c348712bda248c246b8c49b3db54643f, type: 3}
+  EyeGazeRotationAction:
+    m_UseReference: 1
+    m_Action:
+      m_Name: Eye Gaze Rotation
+      m_Type: 0
+      m_ExpectedControlType: 
+      m_Id: 37a21dcb-e9bf-47ad-87a8-88834703251c
+      m_Processors: 
+      m_Interactions: 
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_Reference: {fileID: -5930349909990434036, guid: c348712bda248c246b8c49b3db54643f, type: 3}
   shadowDotMaterial: {fileID: 2100000, guid: f60c0be2ff7d72b43af281400ab99251, type: 2}
   xriProxyMaterial: {fileID: 2100000, guid: f6c3329dbc4de0f4b9f6a54d20264c36, type: 2}
 --- !u!1 &1568712932
@@ -9768,6 +9792,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   titleSceneManager: {fileID: 417175031}
   importButton: {fileID: 1014435308}
+  desktopZipPathInput: {fileID: 0}
   unzipToRoot: 1
   subfolderName: ImportedStudyData
   overwriteFiles: 1

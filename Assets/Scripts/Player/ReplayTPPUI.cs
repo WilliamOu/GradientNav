@@ -200,7 +200,7 @@ public class ReplayTPPUI : MonoBehaviour
         if (AppManager.Instance.Replay == null) return;
 
         // Pause/Play
-        if (Input.GetKeyDown(KeyCode.Space))
+        if (Input.GetKeyDown(KeyCode.Space) && (playerController.CurrentMode != ThreePerspectivePlayer.Mode.FirstPerson || playerController.IsFrozen))
         {
             TogglePlayPause();
         }

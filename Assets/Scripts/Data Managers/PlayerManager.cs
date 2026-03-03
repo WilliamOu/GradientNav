@@ -23,7 +23,6 @@ public class PlayerManager : MonoBehaviour
     private Transform xrOrigin;
     private InputDevice leftHandDevice;
     private InputDevice rightHandDevice;
-    private InputDevice eyeTrackingDevice;
 
     public void Init(GameObject vrPlayerPrefab, GameObject desktopPlayerPrefab)
     {
@@ -98,6 +97,7 @@ public class PlayerManager : MonoBehaviour
         DisableBlackscreen();
     }
 
+    // TODO: This should probably be modernized
     public void GetVRHandWorldData(out Vector3 lPos, out Vector3 lRot, out Vector3 rPos, out Vector3 rRot)
     {
         // Defaults
@@ -137,49 +137,29 @@ public class PlayerManager : MonoBehaviour
 
     public void GetVRGazeWorldData(out Vector3 gazeOrigin, out Vector3 gazeDirection)
     {
-        // If anything fails, we assume the user is looking where the camera points.
+        // 1. Setup the default fallback (Head Camera)
         Transform headT = activeUI != null ? activeUI.PlayerCamera.transform : null;
-        if (headT != null)
-        {
-            gazeOrigin = headT.position;
-            gazeDirection = headT.forward;
-        }
-        else
-        {
-            gazeOrigin = Vector3.zero;
-            gazeDirection = Vector3.forward;
-        }
+        gazeOrigin = headT != null ? headT.position : Vector3.zero;
+        gazeDirection = headT != null ? headT.forward : Vector3.forward;
 
         if (!AppManager.Instance.Session.IsVRMode || xrOrigin == null) return;
 
-        if (!eyeTrackingDevice.isValid)
+        // 2. Read actual Eye Tracking from the New Input System
+        if (AppManager.Instance.EyeGazePositionAction.action != null && AppManager.Instance.EyeGazeRotationAction.action != null &&
+            AppManager.Instance.EyeGazePositionAction.action.enabled && AppManager.Instance.EyeGazeRotationAction.action.enabled)
         {
-            // We look for a device that supports EyeTracking
-            var potentialDevices = new List<InputDevice>();
-            InputDevices.GetDevicesWithCharacteristics(InputDeviceCharacteristics.EyeTracking, potentialDevices);
+            // Read Position and Rotation separately
+            Vector3 eyePosLocal = AppManager.Instance.EyeGazePositionAction.action.ReadValue<Vector3>();
+            Quaternion eyeRotLocal = AppManager.Instance.EyeGazeRotationAction.action.ReadValue<Quaternion>();
 
-            if (potentialDevices.Count > 0)
-                eyeTrackingDevice = potentialDevices[0];
-        }
-
-        if (eyeTrackingDevice.isValid)
-        {
-            // Note: Some headsets provide 'centerEyePosition/Rotation', others use 'devicePosition/Rotation' for eyes
-            // We check both to be safe.
-            bool hasPos = eyeTrackingDevice.TryGetFeatureValue(CommonUsages.centerEyePosition, out Vector3 eyePosLocal)
-                          || eyeTrackingDevice.TryGetFeatureValue(CommonUsages.devicePosition, out eyePosLocal);
-
-            bool hasRot = eyeTrackingDevice.TryGetFeatureValue(CommonUsages.centerEyeRotation, out Quaternion eyeRotLocal)
-                          || eyeTrackingDevice.TryGetFeatureValue(CommonUsages.deviceRotation, out eyeRotLocal);
-
-            if (hasPos && hasRot)
+            // If eye tracking is active, the rotation won't be identity. 
+            if (eyeRotLocal != Quaternion.identity)
             {
-                // Transform from XR Rig Local Space to World Space
+                // Transform the local eye position into World Space using the XROrigin
                 gazeOrigin = xrOrigin.TransformPoint(eyePosLocal);
 
-                // For Gaze, we usually care about the Direction Vector, not just the Euler angles
-                Quaternion worldRot = xrOrigin.rotation * eyeRotLocal;
-                gazeDirection = worldRot * Vector3.forward;
+                // Transform the local eye rotation into a world forward direction
+                gazeDirection = xrOrigin.TransformDirection(eyeRotLocal * Vector3.forward);
             }
         }
     }
