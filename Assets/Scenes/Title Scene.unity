@@ -9790,6 +9790,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70da8820799ea0a4d901279979bcbf79, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  replaySelectionManager: {fileID: 54275258}
   titleSceneManager: {fileID: 417175031}
   importButton: {fileID: 1014435308}
   desktopZipPathInput: {fileID: 0}

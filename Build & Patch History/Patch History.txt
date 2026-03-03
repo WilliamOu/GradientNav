@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.12.2 - March 3, 2026
+- Fixed a Null Reference Error caused by an unassigned Replay Selection Manager in the Zip Import Manager script.
+
 Version 1.0.12.1 - March 3, 2026
 - Disabled import functionality in the Editor and Standalone builds to prevent accidental data deletion.
 - Import functionality now refreshes the replay dropdown. 
