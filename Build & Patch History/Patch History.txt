@@ -2,6 +2,10 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.12.1 - March 3, 2026
+- Disabled import functionality in the Editor and Standalone builds to prevent accidental data deletion.
+- Import functionality now refreshes the replay dropdown. 
+
 Version 1.0.12.0 - March 3, 2026
 - Fixed a bug where the Gradient Navigation Scene Manager would improperly record stale orientation beacon XZ coordinates during the training step. 
 - Modernized eye tracking code to use the OpenXR Input Action System.

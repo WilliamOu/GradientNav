@@ -12,6 +12,7 @@ using UnityEditor;
 
 public class ZipImportManager : MonoBehaviour
 {
+    public ReplaySelectionManager replaySelectionManager;
     public TitleSceneManager titleSceneManager;
 
     [Header("UI")]
@@ -47,23 +48,29 @@ public class ZipImportManager : MonoBehaviour
 #if UNITY_WEBGL && !UNITY_EDITOR
         // WebGL: open browser file picker
         WebGL_OpenZipPicker();
+        replaySelectionManager.RefreshDropdown();
         return;
 #endif
 
 #if UNITY_EDITOR
         // Editor: native picker
-        string path = EditorUtility.OpenFilePanel("Select ZIP", "", "zip");
+        SetStatus("To prevent accidentally deleting participant data, import functionality is disabled outside the WebGL version");
+        return;
+        /*string path = EditorUtility.OpenFilePanel("Select ZIP", "", "zip");
         if (string.IsNullOrEmpty(path))
         {
             SetStatus("Import canceled.");
             return;
         }
         StartCoroutine(ImportZipFromDiskPathCoroutine(path));
-        return;
+        replaySelectionManager.RefreshDropdown();
+        return;*/
 #else
         // Standalone runtime: no built-in file picker without plugins.
         // Use a pasted path, or instruct user to place file in a known location.
-        if (desktopZipPathInput == null || string.IsNullOrWhiteSpace(desktopZipPathInput.text))
+        SetStatus("To prevent accidentally deleting participant data, import functionality is disabled outside the WebGL version");
+        return;
+        /*if (desktopZipPathInput == null || string.IsNullOrWhiteSpace(desktopZipPathInput.text))
         {
             SetStatus("Standalone build: paste a .zip path into the input field, then press Import.");
             return;
@@ -76,7 +83,8 @@ public class ZipImportManager : MonoBehaviour
             return;
         }
         StartCoroutine(ImportZipFromDiskPathCoroutine(runtimePath));
-        return;
+        replaySelectionManager.RefreshDropdown();
+        return;*/
 #endif
     }
 

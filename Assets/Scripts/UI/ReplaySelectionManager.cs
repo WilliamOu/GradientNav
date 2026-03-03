@@ -50,7 +50,7 @@ public sealed class ReplaySelectionManager : MonoBehaviour
         if (hasFocus) RefreshDropdown();
     }
 
-    private void RefreshDropdown()
+    public void RefreshDropdown()
     {
         if (!Directory.Exists(ReplaysRoot)) Directory.CreateDirectory(ReplaysRoot);
 
