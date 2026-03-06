@@ -1,7 +1,6 @@
 using UnityEngine;
 using System;
 using System.IO;
-using System.Collections.Generic;
 
 // Stores and manages settings that change with each session, such as participant information
 public class SessionDataManager
@@ -89,8 +88,9 @@ public class SessionDataManager
     {
         EnsureSessionStarted();
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        string condition = (AppManager.Instance.Session.IsVRMode) ? "VR" : "PC";
 
-        return $"Replay_{participantName}_{participantId}_{currentGameMode.ToString()}_{timestamp}";
+        return $"[Replay][{condition}]_{participantName}_{participantId}_{currentGameMode.ToString()}_{timestamp}";
     }
 
     public bool IsVRMode => currentSession == SessionType.VR;

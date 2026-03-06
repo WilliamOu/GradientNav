@@ -4,8 +4,8 @@ public class Map3DVisualizer : MonoBehaviour
 {
     [Header("Visualization Config")]
     [Tooltip("How many vertices along the longest axis. Higher = smoother but heavier.")]
+    public float heightMultiplier = 4.0f;
     [SerializeField] private int meshResolution = 150;
-    [SerializeField] private float heightMultiplier = 4.0f;
 
     [Header("Appearance")]
     [Tooltip("Material MUST support Vertex Colors (e.g., Particles/Standard Surface).")]

@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,6 +21,7 @@ public class TrialCreationTPPUI : MonoBehaviour
     [SerializeField] private Button dupeFileBtn;
     [SerializeField] private Button saveFileBtn;
     [SerializeField] private Button backBtn;
+    [SerializeField] private Button renameBtn;
     [SerializeField] private GameObject panel;
     [SerializeField] private Transform outOfBoundsLocation;
 
@@ -46,6 +48,10 @@ public class TrialCreationTPPUI : MonoBehaviour
 
     [SerializeField] private GameObject matrixContainer;
     [SerializeField] private TMP_InputField mapFileNameInput;
+
+    [Header("Visualization")]
+    [SerializeField] private GameObject OrientPillar;
+    private LineRenderer spawnLine;
 
     [Header("Settings")]
     [SerializeField] private Button toggleMapBoundsBtn;
@@ -94,6 +100,7 @@ public class TrialCreationTPPUI : MonoBehaviour
         addTrialBtn.onClick.AddListener(AddNewTrial);
         removeTrialBtn.onClick.AddListener(RemoveCurrentTrial);
         duplicateTrialBtn.onClick.AddListener(DuplicateCurrentTrial);
+        renameBtn.onClick.AddListener(() => { RenameCurrentFile(newFileNameInput.text); });
         generatePeaksBtn.onClick.AddListener(GenerateRandomPeaksForCurrent);
 
         // Data Inputs (Auto-update map on deselect/submit)
@@ -106,7 +113,7 @@ public class TrialCreationTPPUI : MonoBehaviour
 
         toggleMapBoundsBtn.onClick.AddListener(ToggleMapBounds);
 
-        if (mapFileNameInput != null) mapFileNameInput.onEndEdit.AddListener(_ => PushUiToData());
+        if (mapFileNameInput != null) mapFileNameInput.onEndEdit.AddListener(_ => StartCoroutine(DelayedPushUiToData()));
 
         if (playerController != null)
         {
@@ -114,7 +121,7 @@ public class TrialCreationTPPUI : MonoBehaviour
         }
         // if (panel != null) panel.SetActive(false);
         AppManager.Instance.Utilities.MapVisualizer.ToggleMap(true);
-        AppManager.Instance.Utilities.Minimap.ManualUpdate(outOfBoundsLocation);
+        // AppManager.Instance.Utilities.Minimap.ManualUpdate(outOfBoundsLocation);
         AppManager.Instance.Utilities.Minimap.gameObject.SetActive(true);
     }
 
@@ -249,6 +256,40 @@ public class TrialCreationTPPUI : MonoBehaviour
         {
             fileDropdown.value = index;
             LoadFile(currentFilePath);
+        }
+    }
+
+    private void RenameCurrentFile(string newName)
+    {
+        if (string.IsNullOrWhiteSpace(newName) || string.IsNullOrEmpty(currentFilePath)) return;
+
+        // Strip and re-add extension just in case they typed it manually
+        newName = newName.Replace(".csv", "") + ".csv";
+
+        string folder = AppManager.Instance.Settings.TrialsFolderPath;
+        string newPath = Path.Combine(folder, newName);
+
+        if (currentFilePath == newPath) return; // No change
+
+        if (File.Exists(newPath))
+        {
+            Debug.LogWarning($"Cannot rename: A file named {newName} already exists.");
+            return;
+        }
+
+        SaveCurrentFile(); // Save latest changes before moving
+        File.Move(currentFilePath, newPath);
+        currentFilePath = newPath;
+
+        // Note: This automatically loads files[0] in the background
+        RefreshFileList();
+
+        // ync the dropdown AND force the backend to reload our newly renamed file
+        int index = fileDropdown.options.FindIndex(opt => opt.text == newName);
+        if (index >= 0)
+        {
+            fileDropdown.value = index; // Updates the UI
+            LoadFile(currentFilePath);  // Overrides the files[0] load from RefreshFileList
         }
     }
 
@@ -404,6 +445,12 @@ public class TrialCreationTPPUI : MonoBehaviour
         uiIsUpdating = false;
     }
 
+    private IEnumerator DelayedPushUiToData()
+    {
+        yield return null;
+        PushUiToData();
+    }
+
     public void PushUiToData()
     {
         if (uiIsUpdating || activeTrialIndex < 0) return;
@@ -535,6 +582,38 @@ public class TrialCreationTPPUI : MonoBehaviour
         // Now tell the visualizer to redraw the mesh
         AppManager.Instance.Utilities.MapVisualizer.UpdateMeshGeometry();
         AppManager.Instance.Utilities.Minimap.RefreshMinimap();
+
+        UpdateSpawnVisualization(spec.SpawnXZ);
+    }
+
+    private void UpdateSpawnVisualization(Vector2 spawnXZ)
+    {
+        if (OrientPillar != null)
+        {
+            // Move pillar to XZ
+            OrientPillar.transform.position = new Vector3(spawnXZ.x, AppManager.Instance.Utilities.MapVisualizer.heightMultiplier * AppManager.Instance.Stimulus.GetIntensity(spawnXZ), spawnXZ.y);
+
+            // Ensure LineRenderer exists
+            if (spawnLine == null)
+            {
+                spawnLine = OrientPillar.GetComponent<LineRenderer>();
+                if (spawnLine == null)
+                {
+                    spawnLine = OrientPillar.AddComponent<LineRenderer>();
+                    spawnLine.startWidth = 0.1f;
+                    spawnLine.endWidth = 0.1f;
+                    spawnLine.positionCount = 2;
+                    spawnLine.material = new Material(Shader.Find("Sprites/Default"));
+                    spawnLine.startColor = Color.blue;
+                    spawnLine.endColor = Color.cyan;
+                }
+            }
+
+            // Beam line straight up from 0 to 1000 on the Y axis
+            spawnLine.SetPosition(0, new Vector3(spawnXZ.x, 0, spawnXZ.y));
+            spawnLine.SetPosition(1, new Vector3(spawnXZ.x, 1000f, spawnXZ.y));
+            AppManager.Instance.Utilities.Minimap.UpdatePlayerIconExternal(spawnXZ);
+        }
     }
 
     // Helper

@@ -44,25 +44,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d24fcbb6b099c0043bc24952e03feb02, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  meshResolution: 150
   heightMultiplier: 4
-  meshMaterial: {fileID: 0}
+  meshResolution: 150
+  meshMaterial: {fileID: 2100000, guid: f426d4cc5c1619b4aa280b47b58895ed, type: 2}
   heatGradient:
     serializedVersion: 2
     key0: {r: 0, g: 0, b: 0, a: 1}
-    key1: {r: 0, g: 1, b: 0.12994671, a: 1}
-    key2: {r: 0, g: 1, b: 0.53279114, a: 0}
-    key3: {r: 0, g: 0.4690814, b: 1, a: 0}
-    key4: {r: 0.7921567, g: 0, b: 1, a: 0}
-    key5: {r: 1, g: 0, b: 0.39863348, a: 0}
+    key1: {r: 1, g: 1, b: 1, a: 1}
+    key2: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 0, g: 0, b: 0, a: 0}
+    key4: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 0, g: 0, b: 0, a: 0}
     key6: {r: 0, g: 0, b: 0, a: 0}
     key7: {r: 0, g: 0, b: 0, a: 0}
     ctime0: 193
-    ctime1: 2313
-    ctime2: 10794
-    ctime3: 26985
-    ctime4: 52043
-    ctime5: 65535
+    ctime1: 65535
+    ctime2: 0
+    ctime3: 0
+    ctime4: 0
+    ctime5: 0
     ctime6: 0
     ctime7: 0
     atime0: 0
@@ -75,5 +75,5 @@ MonoBehaviour:
     atime7: 0
     m_Mode: 0
     m_ColorSpace: -1
-    m_NumColorKeys: 6
+    m_NumColorKeys: 2
     m_NumAlphaKeys: 2

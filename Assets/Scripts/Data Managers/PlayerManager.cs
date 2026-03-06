@@ -1,10 +1,6 @@
 using UnityEngine;
-using System.Collections.Generic;
 using System.Collections;
-using Unity.VisualScripting;
 using UnityEngine.XR;
-using static UnityEngine.GraphicsBuffer;
-using Unity.XR.CoreUtils;
 using UnityEngine.XR.Interaction.Toolkit;
 
 public class PlayerManager : MonoBehaviour

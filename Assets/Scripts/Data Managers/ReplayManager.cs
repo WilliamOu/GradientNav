@@ -55,7 +55,7 @@ public class ReplayManager : MonoBehaviour
     public float maxSpeed = 4.0f;
     public float minSpeed = 0.25f;
     public bool showLabels = false;
-    public bool drawSkeletonLines = false;
+    public bool drawSkeletonLines = true;
 
     [Header("Visuals")]
     [SerializeField] private float dotSize = 0.05f;
@@ -86,6 +86,15 @@ public class ReplayManager : MonoBehaviour
 
     // --- Bone IDs ---
     private const int ShadowBoneCount = 17;
+    private LineRenderer[] boneLines;
+    private readonly int[,] bonePairs = new int[,]
+    {
+        {2, 0}, {0, 1},                           // Spine & Neck (Pelvis -> Chest -> Head)
+        {0, 8}, {8, 3}, {3, 5}, {5, 6},           // Left Arm (Chest -> Collarbone -> Shoulder -> Elbow -> Hand)
+        {2, 9}, {9, 7}, {7, 4},                   // Left Leg (Pelvis -> Upper Leg -> Knee -> Foot)
+        {0, 15}, {15, 10}, {10, 12}, {12, 13},    // Right Arm (Chest -> Collarbone -> Shoulder -> Elbow -> Hand)
+        {2, 16}, {16, 14}, {14, 11}               // Right Leg (Pelvis -> Upper Leg -> Knee -> Foot)
+    };
 
     public float CurrentTime => currentTime;
     public float PlaybackSpeed => playbackSpeed;
@@ -200,7 +209,7 @@ public class ReplayManager : MonoBehaviour
             AnchorShadowPosition();
             ApplyShadowRotation();
             UpdateLabels();
-            if (drawSkeletonLines) DrawSkeleton();
+            if (drawSkeletonLines) UpdateSkeletonLines();
         }
 
         // DrawDebugGizmos();
@@ -443,12 +452,24 @@ public class ReplayManager : MonoBehaviour
             dotLabels[i] = tm;
         }
 
+        boneLines = new LineRenderer[bonePairs.GetLength(0)];
+
+        for (int i = 0; i < boneLines.Length; i++)
+        {
+            // Pass Priority 1 so gaze and head rays (Priority 2+) render on top
+            boneLines[i] = CreateLineRenderer($"BoneLine_{i}", Color.gray, 1);
+
+            // Optional: Make the skeleton lines slightly thinner than the gaze rays
+            boneLines[i].startWidth = 0.005f;
+            boneLines[i].endWidth = 0.005f;
+        }
+
         xriHead = CreateProxy("XRI_Head", 0.15f);
         xriLeft = CreateProxy("XRI_L", 0.08f);
         xriRight = CreateProxy("XRI_R", 0.08f);
 
-        headRayRenderer = CreateLineRenderer("Head_Ray", new Color(120, 120, 120), 1, 0.8f);
-        gazeRayRenderer = CreateLineRenderer("Gaze_Ray", Color.green, 2, 1f);
+        headRayRenderer = CreateLineRenderer("Head_Ray", new Color(120, 120, 120), 2, 0.8f);
+        gazeRayRenderer = CreateLineRenderer("Gaze_Ray", Color.green, 3, 1f);
     }
 
     private Transform CreateProxy(string name, float scale)
@@ -554,12 +575,29 @@ public class ReplayManager : MonoBehaviour
         }
     }
 
-    private void DrawSkeleton()
+    private void UpdateSkeletonLines()
     {
-        if (shadowDots == null) return;
-        for (int i = 0; i < shadowDots.Length - 1; i++)
-            if (shadowDots[i] && shadowDots[i + 1])
-                Debug.DrawLine(shadowDots[i].position, shadowDots[i + 1].position, Color.gray);
+        if (shadowDots == null || boneLines == null) return;
+
+        for (int i = 0; i < bonePairs.GetLength(0); i++)
+        {
+            int startIdx = bonePairs[i, 0];
+            int endIdx = bonePairs[i, 1];
+
+            if (shadowDots[startIdx] != null && shadowDots[endIdx] != null && boneLines[i] != null)
+            {
+                if (drawSkeletonLines)
+                {
+                    boneLines[i].enabled = true;
+                    boneLines[i].SetPosition(0, shadowDots[startIdx].position);
+                    boneLines[i].SetPosition(1, shadowDots[endIdx].position);
+                }
+                else
+                {
+                    boneLines[i].enabled = false;
+                }
+            }
+        }
     }
 
     // ===================================================================================

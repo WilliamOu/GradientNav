@@ -1,0 +1,15 @@
+﻿{
+  "formatVersion": 1,
+  "dataFile": "data.bin",
+  "dataEncoding": "u8_raw",
+  "width": 100,
+  "height": 100,
+  "frames": 1,
+  "scaleCm": 10,
+  "interp2D": "bilinear",
+  "interp3D": "none",
+  "frameSeconds": 1,
+  "frameMode": "clamp",
+  "outOfBounds": "zero",
+  "timeSource": "unityTime"
+}

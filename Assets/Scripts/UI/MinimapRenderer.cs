@@ -207,6 +207,11 @@ public class MinimapRenderer : MonoBehaviour
         return new Vector2(uiX, uiY);
     }
 
+    public void UpdatePlayerIconExternal(Vector2 playerPos)
+    {
+        UpdateIconPosition(playerIcon, playerPos);
+    }
+
     private void UpdateIconPosition(RectTransform icon, Vector2 worldPos)
     {
         icon.anchoredPosition = WorldToUIPosition(worldPos);

@@ -2,6 +2,18 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.12.5 - March 3, 2026
+- Updated the trial spec example with adjusted spawn points and matrix maps.
+- Added matrix examples containing noisy gradients.
+- Added CSV matrix conversion functionality to the Title Scene. 
+- Added spawn point visualization (on both the 3D visualizer and the minimap) to the Trial Creation Scene.
+- Changed the color scheme of the 3D visualizer to black and white for visual clarity.
+- Adjusted the shader of the 3D visualizer to an unlit shader to remove shadows for visual clarity.
+
+Version 1.0.12.4 - March 3, 2026
+- Added a skeleton visualization to the Replay Scene.
+- Adjusted Data Log naming scheme to specify whether the VR or PC (Desktop) condition was used. 
+
 Version 1.0.12.3 - March 3, 2026
 - Fixed improper UI element alignment for the Three Perspective Camera Controls in non 16:9 aspect ratios.
 - Import functionality now refreshes the replay dropdown. 
