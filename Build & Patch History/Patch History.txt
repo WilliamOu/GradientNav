@@ -2,7 +2,14 @@
 Patch History For GradientNav
 =============================
 
-Version 1.0.12.5 - March 3, 2026
+Version 1.0.12.6 - March 5, 2026
+- Fixed a bug where the minimap would not load in the replay scene if experimental mode was off.
+- Fixed a bug where a lack of shadow data would cause the eye tracker to not render properly.
+- Adjusted the default Gaussian to match the updated sigma scale code.
+- Adjusted Data Log to properly record the default trial, and the replay UI to properly render it. 
+- Adjusted the safety wall training initial prompt to specify "when prompted" for instructional clarity.
+
+Version 1.0.12.5 - March 5, 2026
 - Updated the trial spec example with adjusted spawn points and matrix maps.
 - Added matrix examples containing noisy gradients.
 - Added CSV matrix conversion functionality to the Title Scene. 

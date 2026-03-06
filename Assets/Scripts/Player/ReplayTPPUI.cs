@@ -78,11 +78,12 @@ public class ReplayTPPUI : MonoBehaviour
 
         try
         {
-            AppManager.Instance.Settings.LoadFromDisk(Path.Combine(AppManager.Instance.Replay.GetFolderPath(), "settings_snapshot.json")); // Load snapshot settings
+            AppManager.Instance.Settings.LoadFromDisk(Path.Combine(AppManager.Instance.Replay.GetFolderPath(), "settings_snapshot.json"));
         }
         catch
         {
-            // Do nothing though the Settings may be malformed
+            Debug.Log("Malformed settings_snapshot detected. Resorting to existing settings.");
+            AppManager.Instance.Settings.LoadFromDisk();
         }
 
         try
@@ -91,6 +92,7 @@ public class ReplayTPPUI : MonoBehaviour
         }
         catch
         {
+            Debug.Log("Malformed trials_snapshot detected.");
             trialsValid = false;
         }
 
@@ -281,7 +283,8 @@ public class ReplayTPPUI : MonoBehaviour
         }
 
         int currentTrial = closestFrame.TrialNum;
-        if (currentTrial != lastTrial && trialsValid && currentTrial > 0 && currentTrial <= trialSpecs.Count)
+        bool validIndex = (currentTrial > 0 && currentTrial <= trialSpecs.Count) || (currentTrial == -9999); // -9999 is a special case default trial used in the training stage
+        if (currentTrial != lastTrial && trialsValid && validIndex)
         {
             TrialSpec spec = trialSpecs[currentTrial - 1];
 
@@ -298,7 +301,7 @@ public class ReplayTPPUI : MonoBehaviour
             );
 
             // Setup Session Data
-            AppManager.Instance.Utilities.Minimap.RefreshMinimap();
+            AppManager.Instance.Utilities.Minimap.RefreshMinimap(true);
             lastTrial = currentTrial;
         }
         AppManager.Instance.Utilities.Minimap.ManualUpdate(interpolatedHeadTransform);

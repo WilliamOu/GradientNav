@@ -513,8 +513,7 @@ public class ReplayManager : MonoBehaviour
     private LineRenderer CreateLineRenderer(string name, Color color, int priority, float widthMultiplier = 1f)
     {
         GameObject go = new GameObject(name);
-        // Parent it to shadowRoot so it cleans up when streams close
-        go.transform.SetParent(shadowRoot);
+        go.transform.SetParent(xriHead);
 
         LineRenderer lr = go.AddComponent<LineRenderer>();
         lr.positionCount = 2;

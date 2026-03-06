@@ -266,6 +266,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         AppManager.Instance.Utilities.Minimap.RefreshMinimap();
         AppManager.Instance.Session.SpawnPosition = spec.SpawnXZ;
         AppManager.Instance.Session.GoalPosition = spec.CenterXZ;
+        AppManager.Instance.Session.TrialNumber = -9999;
 
         string msg = $"The brightness of the screen will change as you move around the scene." +
                      $"\n(Press either trigger key to continue)";
@@ -300,7 +301,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         if (AppManager.Instance.Settings.EnableSafetyWalls)
         {
             AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
-            AppManager.Instance.Player.SetUIMessage("Safety walls will warn you if you are too close to a wall. Walk to the pillar at the corner of the room.\n(Press either trigger key to continue)", Color.white, -1);
+            AppManager.Instance.Player.SetUIMessage("Safety walls will warn you if you are too close to a wall. When prompted, walk to the pillar at the corner of the room.\n(Press either trigger key to continue)", Color.white, -1);
             yield return WaitForAnyTrigger();
             AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
             Vector2 cornerPos = GetClosestCornerInset(1f);

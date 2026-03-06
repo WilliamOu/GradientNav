@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class MinimapRenderer : MonoBehaviour
@@ -58,9 +59,9 @@ public class MinimapRenderer : MonoBehaviour
         minimapObj.gameObject.SetActive(toggle);
     }
 
-    public void RefreshMinimap()
+    public void RefreshMinimap(bool manualOverride = false)
     {
-        if (!AppManager.Instance.Session.IsVRMode && !AppManager.Instance.Settings.ExperimentalMode) return;
+        if (!manualOverride && !AppManager.Instance.Session.IsVRMode && !AppManager.Instance.Settings.ExperimentalMode) return;
 
         float width = AppManager.Instance.Settings.MapWidth;
         float length = AppManager.Instance.Settings.MapLength;
@@ -99,9 +100,9 @@ public class MinimapRenderer : MonoBehaviour
         }
     }
 
-    public void RefreshMinimapFast()
+    public void RefreshMinimapFast(bool manualOverride = false)
     {
-        if (!AppManager.Instance.Session.IsVRMode && !AppManager.Instance.Settings.ExperimentalMode) return;
+        if (!manualOverride && !(SceneManager.GetActiveScene().name == "Replay Scene") && !AppManager.Instance.Session.IsVRMode && !AppManager.Instance.Settings.ExperimentalMode) return;
 
         EnsurePixels();
 

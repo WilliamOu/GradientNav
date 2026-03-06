@@ -88,7 +88,7 @@ public class TrialManager : MonoBehaviour
                 GoalOverride = null,
                 ExtraGoals = new List<Vector2>(),
                 Peaks = null,
-                SigmaOverride = 2.0f
+                SigmaOverride = 0.5f
             };
         }
 

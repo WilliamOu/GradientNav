@@ -135,7 +135,7 @@ public class TrialCreationTPPUI : MonoBehaviour
         if (Time.time < _nextRefreshTime) return;
         _nextRefreshTime = Time.time + refreshInterval;
 
-        AppManager.Instance.Utilities.Minimap.RefreshMinimapFast();
+        AppManager.Instance.Utilities.Minimap.RefreshMinimapFast(true);
         AppManager.Instance.Utilities.MapVisualizer.UpdateMeshValuesOnly();
     }
 
@@ -581,7 +581,7 @@ public class TrialCreationTPPUI : MonoBehaviour
 
         // Now tell the visualizer to redraw the mesh
         AppManager.Instance.Utilities.MapVisualizer.UpdateMeshGeometry();
-        AppManager.Instance.Utilities.Minimap.RefreshMinimap();
+        AppManager.Instance.Utilities.Minimap.RefreshMinimap(true);
 
         UpdateSpawnVisualization(spec.SpawnXZ);
     }
