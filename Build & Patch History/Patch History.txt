@@ -2,6 +2,10 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.12.7 - March 7, 2026
+- Added an initial delay before the player can complete walk orientation to prevent disorientation if the player begins on top of the walk pillar by default.
+- Adjusted the look and walk orientation pillars to use sustained attention/presence to trigger completion, rather than a delayed completion. 
+
 Version 1.0.12.6 - March 5, 2026
 - Fixed a bug where the minimap would not load in the replay scene if experimental mode was off.
 - Fixed a bug where a lack of shadow data would cause the eye tracker to not render properly.

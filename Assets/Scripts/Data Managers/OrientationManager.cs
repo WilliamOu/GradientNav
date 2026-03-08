@@ -9,9 +9,9 @@ public class OrientationManager : MonoBehaviour
     private GameObject walkObjectPrefab;
 
     private float lookRequiredAngleDegrees = 10f;
-    private float walkRequiredProximityMeters = 0.6f;
-    private float lookHoldDelaySeconds = 0.15f;
-    private float walkHoldDelaySeconds = 0.5f;
+    private float walkRequiredProximityMeters = 0.5f;
+    private float lookHoldDelaySeconds = 0.2f;
+    private float walkHoldDelaySeconds = 0.6f;
     private float lookMarkerHeight = 1.5f;
     private float walkMarkerHeight = 1.25f;
 
@@ -21,17 +21,33 @@ public class OrientationManager : MonoBehaviour
     {
         this.lookObjectPrefab = lookObjectPrefab;
         this.walkObjectPrefab = walkObjectPrefab;
-    }   
+    }
 
-    public IEnumerator WalkToLocation(float x, float z)
+    public IEnumerator WalkToLocation(float x, float z, float minDelayInSeconds = 2f)
     {
         AppManager.Instance.Player.SetUIMessage("Walk to the red waypoint", Color.white, -1);
 
         SpawnMarker(walkObjectPrefab, new Vector3(x, walkMarkerHeight, z));
 
-        yield return new WaitUntil(IsPlayerCloseToMarker);
+        // Initial delay to prevent instant completion if they spawn on the marker
+        yield return new WaitForSeconds(minDelayInSeconds);
 
-        yield return new WaitForSeconds(walkHoldDelaySeconds);
+        float sustainedTime = 0f;
+
+        // Loop until the player has stayed in the zone for the required continuous duration
+        while (sustainedTime < walkHoldDelaySeconds)
+        {
+            if (IsPlayerCloseToMarker())
+            {
+                sustainedTime += Time.deltaTime;
+            }
+            else
+            {
+                sustainedTime = Mathf.Max(0f, sustainedTime - Time.deltaTime);
+            }
+
+            yield return null;
+        }
 
         CleanupMarker();
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
@@ -43,8 +59,22 @@ public class OrientationManager : MonoBehaviour
 
         SpawnMarker(lookObjectPrefab, new Vector3(x, lookMarkerHeight, z));
 
-        yield return new WaitUntil(IsPlayerLookingAtMarker);
-        yield return new WaitForSeconds(lookHoldDelaySeconds);
+        float sustainedTime = 0f;
+
+        // Loop until the player has maintained unbroken eye contact for the required duration
+        while (sustainedTime < lookHoldDelaySeconds)
+        {
+            if (IsPlayerLookingAtMarker())
+            {
+                sustainedTime += Time.deltaTime;
+            }
+            else
+            {
+                sustainedTime = Mathf.Max(0f, sustainedTime - Time.deltaTime);
+            }
+
+            yield return null;
+        }
 
         CleanupMarker();
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
