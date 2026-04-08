@@ -63,6 +63,8 @@ public class MinimapRenderer : MonoBehaviour
     {
         if (!manualOverride && !AppManager.Instance.Session.IsVRMode && !AppManager.Instance.Settings.ExperimentalMode) return;
 
+        EnsureInitialized();
+
         float width = AppManager.Instance.Settings.MapWidth;
         float length = AppManager.Instance.Settings.MapLength;
 
@@ -104,6 +106,7 @@ public class MinimapRenderer : MonoBehaviour
     {
         if (!manualOverride && !(SceneManager.GetActiveScene().name == "Replay Scene") && !AppManager.Instance.Session.IsVRMode && !AppManager.Instance.Settings.ExperimentalMode) return;
 
+        EnsureInitialized();
         EnsurePixels();
 
         float width = AppManager.Instance.Settings.MapWidth;
@@ -135,6 +138,35 @@ public class MinimapRenderer : MonoBehaviour
         {
             Vector2 goalPos = AppManager.Instance.Session.GoalPosition;
             UpdateIconPosition(goalIcon, goalPos);
+        }
+    }
+
+    private void EnsureInitialized()
+    {
+        if (_mapTexture != null) return;
+
+        _mapTexture = new Texture2D(resolution, resolution, TextureFormat.RGB24, false);
+        _mapTexture.wrapMode = TextureWrapMode.Clamp;
+        _mapTexture.filterMode = FilterMode.Bilinear;
+
+        if (mapDisplay != null)
+            mapDisplay.texture = _mapTexture;
+
+        if (heatGradient == null || heatGradient.colorKeys == null || heatGradient.colorKeys.Length == 0)
+        {
+            heatGradient = new Gradient();
+            heatGradient.SetKeys(
+                new GradientColorKey[]
+                {
+                new GradientColorKey(Color.black, 0.0f),
+                new GradientColorKey(Color.white, 1.0f)
+                },
+                new GradientAlphaKey[]
+                {
+                new GradientAlphaKey(1.0f, 0.0f),
+                new GradientAlphaKey(1.0f, 1.0f)
+                }
+            );
         }
     }
 

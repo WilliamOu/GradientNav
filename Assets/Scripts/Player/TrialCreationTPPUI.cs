@@ -86,6 +86,9 @@ public class TrialCreationTPPUI : MonoBehaviour
     {
         if (panel != null) panel.SetActive(true);
 
+        AppManager.Instance.Utilities.MapVisualizer.ToggleMap(true);
+        AppManager.Instance.Utilities.Minimap.gameObject.SetActive(true);
+
         RefreshFileList();
 
         // Setup Listeners
@@ -120,9 +123,7 @@ public class TrialCreationTPPUI : MonoBehaviour
             HandleFreeze(playerController.IsFrozen);
         }
         // if (panel != null) panel.SetActive(false);
-        AppManager.Instance.Utilities.MapVisualizer.ToggleMap(true);
         // AppManager.Instance.Utilities.Minimap.ManualUpdate(outOfBoundsLocation);
-        AppManager.Instance.Utilities.Minimap.gameObject.SetActive(true);
     }
 
     // Rip performance

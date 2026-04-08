@@ -286,7 +286,25 @@ public class ReplayTPPUI : MonoBehaviour
         bool validIndex = (currentTrial > 0 && currentTrial <= trialSpecs.Count) || (currentTrial == -9999); // -9999 is a special case default trial used in the training stage
         if (currentTrial != lastTrial && trialsValid && validIndex)
         {
-            TrialSpec spec = trialSpecs[currentTrial - 1];
+            TrialSpec spec;
+
+            if (currentTrial == -9999)
+            {
+                spec = new TrialSpec
+                {
+                    MapTypeIndex = 0,
+                    SpawnXZ = Vector2.zero,
+                    CenterXZ = Vector2.zero,
+                    GoalOverride = null,
+                    ExtraGoals = new List<Vector2>(),
+                    Peaks = null,
+                    SigmaOverride = 0.5f
+                };
+            }
+            else
+            {
+                spec = trialSpecs[currentTrial - 1];
+            }
 
             AppManager.Instance.Stimulus.GenerateMap(
                 spec.MapTypeIndex,

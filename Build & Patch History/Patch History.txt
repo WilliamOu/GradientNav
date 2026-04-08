@@ -2,6 +2,10 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.12.8 - April 8, 2026
+- Fixed an initialization ordering bug that resulted in null reference exceptions on the built version of the study. 
+- Fixed a bug with the Replay System UI that would incorrectly handle the -9999 sentinel map case. 
+
 Version 1.0.12.7 - March 7, 2026
 - Added an initial delay before the player can complete walk orientation to prevent disorientation if the player begins on top of the walk pillar by default.
 - Adjusted the look and walk orientation pillars to use sustained attention/presence to trigger completion, rather than a delayed completion. 
