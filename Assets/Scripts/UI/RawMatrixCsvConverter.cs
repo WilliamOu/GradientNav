@@ -13,7 +13,7 @@ public class RawMatrixCsvConverter : MonoBehaviour
     [SerializeField] private Button convertButton;
 
     [Header("Defaults")]
-    [SerializeField] private float defaultScaleCm = 10f;
+    [SerializeField] private float defaultScaleCm = 4f;
     [SerializeField] private float defaultFrameSeconds = 1f;
     [SerializeField] private string interp2D = "bilinear";
     [SerializeField] private string interp3D = "none";
@@ -146,17 +146,17 @@ public class RawMatrixCsvConverter : MonoBehaviour
     }
 
     private static string BuildMetaJson(
-        int width,
-        int height,
-        int frames,
-        float scaleCm,
-        float frameSeconds,
-        string interp2D,
-        string interp3D,
-        string frameMode)
+    int width,
+    int height,
+    int frames,
+    float scaleCm,
+    float frameSeconds,
+    string interp2D,
+    string interp3D,
+    string frameMode)
     {
         return
-$@"{{
+    $@"{{
   ""formatVersion"": 1,
   ""dataFile"": ""data.bin"",
   ""dataEncoding"": ""u8_raw"",
@@ -169,7 +169,10 @@ $@"{{
   ""frameSeconds"": {frameSeconds.ToString(CultureInfo.InvariantCulture)},
   ""frameMode"": ""{frameMode}"",
   ""outOfBounds"": ""zero"",
-  ""timeSource"": ""unityTime""
+  ""timeSource"": ""unityTime"",
+
+  ""scaleParameter"": 1.0,
+  ""brightnessMaxPercent"": 1.0
 }}";
     }
 

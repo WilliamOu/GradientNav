@@ -266,9 +266,27 @@ public class TrialManager : MonoBehaviour
     private static int ParseMapTypeIndex(string s)
     {
         if (string.IsNullOrWhiteSpace(s)) return 0;
+
         s = s.Trim().Trim('"');
-        if (int.TryParse(s, out int idx)) return Mathf.Clamp(idx, 0, StimulusManager.MapTypes.Count - 1);
-        int found = StimulusManager.MapTypes.FindIndex(m => string.Equals(m, s, StringComparison.OrdinalIgnoreCase));
+
+        // Numeric case (unchanged)
+        if (int.TryParse(s, out int idx))
+            return Mathf.Clamp(idx, 0, StimulusManager.MapTypes.Count - 1);
+
+        // --- NEW: prefix check ---
+        for (int i = 0; i < StimulusManager.MapTypes.Count; i++)
+        {
+            string mapType = StimulusManager.MapTypes[i];
+
+            if (s.StartsWith(mapType, StringComparison.OrdinalIgnoreCase))
+                return i;
+        }
+
+        // Fallback: exact match (original behavior)
+        int found = StimulusManager.MapTypes.FindIndex(
+            m => string.Equals(m, s, StringComparison.OrdinalIgnoreCase)
+        );
+
         return (found >= 0) ? found : 0;
     }
 
@@ -406,6 +424,11 @@ public class TrialManager : MonoBehaviour
         {
             // Map Type
             string typeStr = StimulusManager.MapTypes[Mathf.Clamp(t.MapTypeIndex, 0, StimulusManager.MapTypes.Count - 1)];
+
+            if (t.MapTypeIndex == 6 && !string.IsNullOrWhiteSpace(t.MapFileName))
+            {
+                typeStr = $"{typeStr} - \"{t.MapFileName}\"";
+            }
 
             // Goals: "x z | x z"
             string goalsStr = "";

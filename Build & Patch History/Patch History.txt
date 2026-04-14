@@ -2,6 +2,13 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.12.9 - April 8, 2026
+- Added text on trial fail and success noting monetary gain.
+- Adjusted the default matrix scale to 4cm (down from 10cm). 
+- Adjusted the training stage text to make the instructions more intuitive.
+- Replay files now log matrix files.
+- Adjusted the replay file to specify the matrix file name in the map type field.
+
 Version 1.0.12.8 - April 8, 2026
 - Fixed an initialization ordering bug that resulted in null reference exceptions on the built version of the study. 
 - Fixed a bug with the Replay System UI that would incorrectly handle the -9999 sentinel map case. 

@@ -8,6 +8,9 @@ public interface IStimulusMap
 {
     float Evaluate(Vector2 playerPos);
     Vector2 GetPrimaryTarget();
+
+    float ScaleParameter { get; }
+    float BrightnessMaxPercent { get; }
 }
 
 [Serializable]
@@ -41,6 +44,9 @@ public class GaussianMap : IStimulusMap
     }
 
     public Vector2 GetPrimaryTarget() => center;
+
+    public float ScaleParameter => 1f;
+    public float BrightnessMaxPercent => 1f;
 }
 
 public class LinearMap : IStimulusMap
@@ -64,6 +70,9 @@ public class LinearMap : IStimulusMap
     }
 
     public Vector2 GetPrimaryTarget() => center;
+
+    public float ScaleParameter => 1f;
+    public float BrightnessMaxPercent => 1f;
 }
 
 public class InverseMap : IStimulusMap
@@ -86,6 +95,9 @@ public class InverseMap : IStimulusMap
 
     // For inverse, the "Target" is technically the walls, but we store center for reference
     public Vector2 GetPrimaryTarget() => center;
+
+    public float ScaleParameter => 1f;
+    public float BrightnessMaxPercent => 1f;
 }
 
 public class MultiPeakMap : IStimulusMap
@@ -143,6 +155,9 @@ public class MultiPeakMap : IStimulusMap
     }
 
     public Vector2 GetPrimaryTarget() => brightestPeakPos;
+
+    public float ScaleParameter => 1f;
+    public float BrightnessMaxPercent => 1f;
 }
 
 public class LinearMultiPeakMap : IStimulusMap
@@ -221,6 +236,9 @@ public class LinearMultiPeakMap : IStimulusMap
     }
 
     public Vector2 GetPrimaryTarget() => brightestPeakPos;
+
+    public float ScaleParameter => 1f;
+    public float BrightnessMaxPercent => 1f;
 }
 
 public class TorusMap : IStimulusMap
@@ -253,6 +271,9 @@ public class TorusMap : IStimulusMap
     // Returns the center of the ring.
     // NOTE: In data analysis, remember that for Type "Torus", the goal is a ring AROUND this point.
     public Vector2 GetPrimaryTarget() => center;
+
+    public float ScaleParameter => 1f;
+    public float BrightnessMaxPercent => 1f;
 }
 
 public class MatrixMap : IStimulusMap
@@ -284,7 +305,13 @@ public class MatrixMap : IStimulusMap
         // Optional extras
         public string outOfBounds = "zero";
         public string timeSource = "unityTime";
+
+        public float scaleParameter = 1f;
+        public float brightnessMaxPercent = 1f;
     }
+
+    public float scaleParameter;
+    public float brightnessMaxPercent;
 
     private readonly Vector2 center;
     private readonly string folderName;
@@ -353,6 +380,9 @@ public class MatrixMap : IStimulusMap
         interp2D = ParseInterp2D(meta.interp2D);
         interp3D = ParseInterp3D(meta.interp3D);
         frameMode = ParseFrameMode(meta.frameMode);
+
+        scaleParameter = meta.scaleParameter;
+        brightnessMaxPercent = meta.brightnessMaxPercent;
 
         if (!string.Equals(meta.dataEncoding, "u8_raw", StringComparison.OrdinalIgnoreCase))
             throw new Exception($"Unsupported dataEncoding '{meta.dataEncoding}'. Only 'u8_raw' supported currently.");
@@ -496,4 +526,7 @@ public class MatrixMap : IStimulusMap
         if (string.Equals(s, "loop", StringComparison.OrdinalIgnoreCase)) return FrameMode.Loop;
         return FrameMode.Clamp;
     }
+
+    public float ScaleParameter => scaleParameter;
+    public float BrightnessMaxPercent => brightnessMaxPercent;
 }

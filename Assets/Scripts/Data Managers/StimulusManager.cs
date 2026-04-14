@@ -37,7 +37,7 @@ public class StimulusManager : MonoBehaviour
 {
     private Vector2? activeGoalOverride;
     public static readonly List<string> MapTypes = new List<string> { "Gaussian", "Linear", "Inverse", "Multi-Peak", "Torus", "Linear Multi-Peak", "Matrix" };
-    private IStimulusMap currentMap;
+    public IStimulusMap currentMap;
 
     public void GenerateMap(
         int typeIndex,

@@ -2118,7 +2118,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   titleSceneManager: {fileID: 417175031}
   convertButton: {fileID: 1079393830}
-  defaultScaleCm: 10
+  defaultScaleCm: 4
   defaultFrameSeconds: 1
   interp2D: bilinear
   interp3D: none

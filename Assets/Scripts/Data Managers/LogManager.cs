@@ -17,6 +17,7 @@ public class LogManager
 {
     public const int MinBufferSize = 1000;
     public const int MaxBufferSize = 30000;
+    private const int MatrixMapTypeIndex = 6; // For copying matrix folder into the replay folder
     public string[] stateNames;
 
     public static readonly long StopwatchFrequency = Stopwatch.Frequency;
@@ -367,10 +368,12 @@ public class LogManager
         string sessionFolderName = AppManager.Instance.Session.GetFileName();
         string destTrials = Path.Combine(sessionFolderPath, "trials_snapshot.csv");
 
+        // Note, the replay does not read from the copied matrix files in the replay folder.
+        // It stil reads from the matrix folder.
         if (specList != null)
         {
-            
             TrialManager.SaveTrialsToCsv(destTrials, specList);
+            CopyMatrixFoldersToSession(specList);
         }
     }
 
@@ -567,6 +570,71 @@ public class LogManager
             sb.Append((char)('0' + (int)digit));
             frac -= digit * div;
             div /= 10;
+        }
+    }
+
+    private static void CopyDirectoryRecursive(string sourceDir, string destDir)
+    {
+        if (!Directory.Exists(sourceDir))
+            throw new DirectoryNotFoundException($"Source directory not found: {sourceDir}");
+
+        Directory.CreateDirectory(destDir);
+
+        foreach (string filePath in Directory.GetFiles(sourceDir))
+        {
+            string fileName = Path.GetFileName(filePath);
+            string destFilePath = Path.Combine(destDir, fileName);
+            File.Copy(filePath, destFilePath, true);
+        }
+
+        foreach (string subDirPath in Directory.GetDirectories(sourceDir))
+        {
+            string subDirName = Path.GetFileName(subDirPath);
+            string destSubDirPath = Path.Combine(destDir, subDirName);
+            CopyDirectoryRecursive(subDirPath, destSubDirPath);
+        }
+    }
+
+    private void CopyMatrixFoldersToSession(List<TrialSpec> specList)
+    {
+        if (specList == null || specList.Count == 0)
+            return;
+
+        string matricesRoot = Path.Combine(Application.persistentDataPath, "Matrices");
+        string sessionMatricesRoot = Path.Combine(sessionFolderPath, "Matrices");
+
+        var copiedNames = new HashSet<string>();
+
+        foreach (TrialSpec spec in specList)
+        {
+            if (spec == null) continue;
+            if (spec.MapTypeIndex != MatrixMapTypeIndex) continue;
+            if (string.IsNullOrWhiteSpace(spec.MapFileName)) continue;
+
+            string folderName = spec.MapFileName.Trim();
+
+            // Avoid copying the same matrix folder multiple times
+            if (!copiedNames.Add(folderName))
+                continue;
+
+            string sourceFolder = Path.Combine(matricesRoot, folderName);
+            string destFolder = Path.Combine(sessionMatricesRoot, folderName);
+
+            try
+            {
+                if (!Directory.Exists(sourceFolder))
+                {
+                    UnityEngine.Debug.LogWarning($"[LogManager] Matrix folder not found: {sourceFolder}");
+                    continue;
+                }
+
+                CopyDirectoryRecursive(sourceFolder, destFolder);
+                UnityEngine.Debug.Log($"[LogManager] Copied matrix folder to replay: {destFolder}");
+            }
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogError($"[LogManager] Failed to copy matrix folder '{folderName}': {e.Message}");
+            }
         }
     }
 }

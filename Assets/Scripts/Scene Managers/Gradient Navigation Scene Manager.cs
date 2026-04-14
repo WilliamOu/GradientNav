@@ -19,6 +19,10 @@ public class GradientNavigationSceneManager : MonoBehaviour
     private float trialSuccessState = -1;
     private bool trialComplete;
 
+    // Money earned
+    private float moneyPerSuccess = 5.0f;
+    private float currentMoney = 0.0f;
+
     // Current Trial Data
     private Vector2 startXZ;
 
@@ -216,7 +220,12 @@ public class GradientNavigationSceneManager : MonoBehaviour
                 if (trialSuccessState < 0) endStateMessage = "ERROR_MESSAGE";
                 else if (trialSuccessState == 9999f) endStateMessage = "Trial Failed.\n(Out of Time)";
                 else if (trialSuccessState < AppManager.Instance.Settings.SuccessThreshold) endStateMessage = (AppManager.Instance.Settings.UseAdditionalInformationOnTrialEndMessage) ? $"Trial Failed\n(Stimulus: {trialSuccessState:F2})" : "Trial Failed";
-                else endStateMessage = (AppManager.Instance.Settings.UseAdditionalInformationOnTrialEndMessage) ? $"Trial Success!\n(Stimulus: {trialSuccessState:F2})" : "Trial Success!";
+                else
+                {
+                    endStateMessage = (AppManager.Instance.Settings.UseAdditionalInformationOnTrialEndMessage) ? $"Trial Success!\n(Stimulus: {trialSuccessState:F2})" : "Trial Success!";
+                    currentMoney += moneyPerSuccess;
+                }
+                endStateMessage += $"\nTotal Earned: ${currentMoney:F2}";
                 AppManager.Instance.Player.SetUIMessage(endStateMessage, Color.magenta, -1);
                 yield return new WaitForSeconds(1.5f);
             }
@@ -268,15 +277,23 @@ public class GradientNavigationSceneManager : MonoBehaviour
         AppManager.Instance.Session.GoalPosition = spec.CenterXZ;
         AppManager.Instance.Session.TrialNumber = -9999;
 
-        string msg = $"The brightness of the screen will change as you move around the scene." +
-                     $"\n(Press either trigger key to continue)";
+        string msg = $"The brightness of the screen will change as you move around the scene.\nWhen you are at the peak, press the trigger key on either of your controllers.";
         AppManager.Instance.Player.SetUIMessage(msg, Color.magenta, -1);
         yield return WaitForAnyTrigger();
 
-        msg = $"When you think you are at the point of maximum brightness, press the trigger key on either of your controllers." +
-              $"\n(Press either trigger key to continue)";
-        AppManager.Instance.Player.SetUIMessage(msg, Color.magenta, -1);
-        yield return WaitForAnyTrigger();
+        float currentIntensity = AppManager.Instance.Player.StimulusIntensity;
+        bool isSuccess = currentIntensity >= AppManager.Instance.Settings.SuccessThreshold;
+
+        if (isSuccess)
+        {
+            AppManager.Instance.Player.SetUIMessage("Success! Let's move on.", Color.magenta, -1);
+        }
+        else
+        {
+            AppManager.Instance.Player.SetUIMessage("Not quite, but let's move on!", Color.magenta, -1);
+        }
+
+        yield return new WaitForSeconds(2.5f);
 
         msg = $"You will be given {AppManager.Instance.Settings.ParticipantMaxTestCount} attempt(s) to find the point of maximum brightness." +
               $"\n(Press either trigger key to continue)";
@@ -298,7 +315,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         SetState(SessionDataManager.GameState.Training); // Restore state after orientation
 
         // Safety Walls
-        if (AppManager.Instance.Settings.EnableSafetyWalls)
+        /*if (AppManager.Instance.Settings.EnableSafetyWalls)
         {
             AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
             AppManager.Instance.Player.SetUIMessage("Safety walls will warn you if you are too close to a wall. When prompted, walk to the pillar at the corner of the room.\n(Press either trigger key to continue)", Color.white, -1);
@@ -311,7 +328,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
             AppManager.Instance.Player.SetUIMessage("Check to ensure the safety indicators appear.\n(Press either trigger key to continue)", Color.white, -1);
             yield return WaitForAnyTrigger();
             AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
-        }
+        }*/
 
         // Pause Training
         if (AppManager.Instance.Settings.EnablePause)
@@ -357,6 +374,23 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
         float currentIntensity = AppManager.Instance.Player.StimulusIntensity;
         bool isSuccess = currentIntensity >= AppManager.Instance.Settings.SuccessThreshold;
+
+        TrialSpec trial = AppManager.Instance.Trial.GetTrial(trialIndex);
+        if (trial.MapTypeIndex == 6)
+        {
+            IStimulusMap map = AppManager.Instance.Stimulus.currentMap;
+            float scale = map.ScaleParameter;
+            float brightness = Mathf.Clamp(map.BrightnessMaxPercent, 0.0001f, 1f);
+
+            float successRadius = scale * 2f * Mathf.Sqrt(2f * Mathf.Log(1f / brightness));
+
+            Vector2 playerPos = new Vector2(
+                AppManager.Instance.Player.CameraPosition().position.x,
+                AppManager.Instance.Player.CameraPosition().position.z
+            );
+
+            isSuccess = Vector2.Distance(playerPos, AppManager.Instance.Session.GoalPosition) <= successRadius;
+        }
 
         if (isSuccess)
         {
