@@ -21,7 +21,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     // Money earned
     private float moneyPerSuccess = 5.0f;
-    private float currentMoney = 0.0f;
+    private float currentMoney = 10.0f;
 
     // Current Trial Data
     private Vector2 startXZ;
