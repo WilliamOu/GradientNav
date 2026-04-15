@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.12.11 - April 14, 2026
+- Adjusted the custom matrix success logic to use a radius parameter directly instead of calculating radius. 
+
 Version 1.0.12.10 - April 13, 2026
 - Adjusted the starting monetary amount to $10.
 

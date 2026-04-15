@@ -45,7 +45,7 @@ public class GaussianMap : IStimulusMap
 
     public Vector2 GetPrimaryTarget() => center;
 
-    public float ScaleParameter => 1f;
+    public float ScaleParameter => -9999.0f;
     public float BrightnessMaxPercent => 1f;
 }
 
@@ -71,7 +71,7 @@ public class LinearMap : IStimulusMap
 
     public Vector2 GetPrimaryTarget() => center;
 
-    public float ScaleParameter => 1f;
+    public float ScaleParameter => -9999.0f;
     public float BrightnessMaxPercent => 1f;
 }
 
@@ -96,7 +96,7 @@ public class InverseMap : IStimulusMap
     // For inverse, the "Target" is technically the walls, but we store center for reference
     public Vector2 GetPrimaryTarget() => center;
 
-    public float ScaleParameter => 1f;
+    public float ScaleParameter => -9999.0f;
     public float BrightnessMaxPercent => 1f;
 }
 
@@ -156,7 +156,7 @@ public class MultiPeakMap : IStimulusMap
 
     public Vector2 GetPrimaryTarget() => brightestPeakPos;
 
-    public float ScaleParameter => 1f;
+    public float ScaleParameter => -9999.0f;
     public float BrightnessMaxPercent => 1f;
 }
 
@@ -237,7 +237,7 @@ public class LinearMultiPeakMap : IStimulusMap
 
     public Vector2 GetPrimaryTarget() => brightestPeakPos;
 
-    public float ScaleParameter => 1f;
+    public float ScaleParameter => -9999.0f;
     public float BrightnessMaxPercent => 1f;
 }
 
@@ -272,7 +272,7 @@ public class TorusMap : IStimulusMap
     // NOTE: In data analysis, remember that for Type "Torus", the goal is a ring AROUND this point.
     public Vector2 GetPrimaryTarget() => center;
 
-    public float ScaleParameter => 1f;
+    public float ScaleParameter => -9999.0f;
     public float BrightnessMaxPercent => 1f;
 }
 

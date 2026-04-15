@@ -171,10 +171,10 @@ public class RawMatrixCsvConverter : MonoBehaviour
   ""outOfBounds"": ""zero"",
   ""timeSource"": ""unityTime"",
 
-  ""scaleParameter"": 1.0,
-  ""brightnessMaxPercent"": 1.0
+  ""scaleParameter"": -9999.0,
+  ""brightnessMaxPercent"": -9999.0
 }}";
-    }
+    } // brightnessMaxPercent unused
 
     private static float InferScaleCmFromFilename(string fileNameNoExt, float fallback)
     {

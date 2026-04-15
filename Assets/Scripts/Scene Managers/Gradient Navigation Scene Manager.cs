@@ -376,13 +376,10 @@ public class GradientNavigationSceneManager : MonoBehaviour
         bool isSuccess = currentIntensity >= AppManager.Instance.Settings.SuccessThreshold;
 
         TrialSpec trial = AppManager.Instance.Trial.GetTrial(trialIndex);
-        if (trial.MapTypeIndex == 6)
+        IStimulusMap map = AppManager.Instance.Stimulus.currentMap;
+        if (trial.MapTypeIndex == 6 && map.ScaleParameter > 0) // If map type is Matrix
         {
-            IStimulusMap map = AppManager.Instance.Stimulus.currentMap;
-            float scale = map.ScaleParameter;
-            float brightness = Mathf.Clamp(map.BrightnessMaxPercent, 0.0001f, 1f);
-
-            float successRadius = scale * 2f * Mathf.Sqrt(2f * Mathf.Log(1f / brightness));
+            float successRadius = map.ScaleParameter;
 
             Vector2 playerPos = new Vector2(
                 AppManager.Instance.Player.CameraPosition().position.x,
