@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 1.0.12.12 - April 14, 2026
+- Fixed a bug causing the UI state to be improperly aligned with the actual success metric. 
+
 Version 1.0.12.11 - April 14, 2026
 - Adjusted the custom matrix success logic to use a radius parameter directly instead of calculating radius. 
 

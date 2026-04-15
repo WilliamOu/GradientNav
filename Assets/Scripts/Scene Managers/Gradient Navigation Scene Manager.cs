@@ -16,7 +16,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
     private int trialIndex;
     private int attemptsRemaining;
     private float timeRemaining;
-    private float trialSuccessState = -1;
+    private float trialFinalIntensity = -1;
+    private bool trialSuccessState = false; 
     private bool trialComplete;
 
     // Money earned
@@ -115,7 +116,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         {
             Debug.Log($"[Trial {trialIndex + 1}] Time expired.");
             AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
-            EndTrial(9999f);
+            EndTrial(9999f, false);
             return;
         }
 
@@ -192,7 +193,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
             attemptsRemaining = AppManager.Instance.Settings.ParticipantMaxTestCount;
             timeRemaining = AppManager.Instance.Settings.TimeToSeek;
             trialComplete = false;
-            trialSuccessState = -1;
+            trialFinalIntensity = -1;
+            trialSuccessState = false; 
 
             // Move Player to Start
             if (!AppManager.Instance.Session.IsVRMode)
@@ -217,14 +219,31 @@ public class GradientNavigationSceneManager : MonoBehaviour
             if (AppManager.Instance.Settings.UseMessageOnTrialEnd)
             {
                 string endStateMessage;
-                if (trialSuccessState < 0) endStateMessage = "ERROR_MESSAGE";
-                else if (trialSuccessState == 9999f) endStateMessage = "Trial Failed.\n(Out of Time)";
-                else if (trialSuccessState < AppManager.Instance.Settings.SuccessThreshold) endStateMessage = (AppManager.Instance.Settings.UseAdditionalInformationOnTrialEndMessage) ? $"Trial Failed\n(Stimulus: {trialSuccessState:F2})" : "Trial Failed";
-                else
+
+                // Check for Errors or Timeouts first
+                if (trialFinalIntensity < 0)
                 {
-                    endStateMessage = (AppManager.Instance.Settings.UseAdditionalInformationOnTrialEndMessage) ? $"Trial Success!\n(Stimulus: {trialSuccessState:F2})" : "Trial Success!";
+                    endStateMessage = "ERROR_MESSAGE";
+                }
+                else if (trialFinalIntensity == 9999f)
+                {
+                    endStateMessage = "Trial Failed.\n(Out of Time)";
+                }
+                // Evaluate actual Success vs Failure using the new boolean
+                else if (trialSuccessState)
+                {
+                    endStateMessage = (AppManager.Instance.Settings.UseAdditionalInformationOnTrialEndMessage)
+                        ? $"Trial Success!\n(Stimulus: {trialFinalIntensity:F2})"
+                        : "Trial Success!";
                     currentMoney += moneyPerSuccess;
                 }
+                else
+                {
+                    endStateMessage = (AppManager.Instance.Settings.UseAdditionalInformationOnTrialEndMessage)
+                        ? $"Trial Failed\n(Stimulus: {trialFinalIntensity:F2})"
+                        : "Trial Failed";
+                }
+
                 endStateMessage += $"\nTotal Earned: ${currentMoney:F2}";
                 AppManager.Instance.Player.SetUIMessage(endStateMessage, Color.magenta, -1);
                 yield return new WaitForSeconds(1.5f);
@@ -393,7 +412,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         {
             Debug.Log($"[Trial {trialIndex + 1}] Success.");
             AppManager.Instance.Logger.LogEvent($"TRIAL_SUCCESS {trialIndex}");
-            EndTrial(currentIntensity);
+            EndTrial(currentIntensity, isSuccess);
             return;
         }
 
@@ -403,7 +422,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         {
             Debug.Log($"[Trial {trialIndex + 1}] Failed (no attempts remaining).");
             AppManager.Instance.Logger.LogEvent($"TRIAL_FAIL {trialIndex}");
-            EndTrial(currentIntensity);
+            EndTrial(currentIntensity, isSuccess);
             return;
         }
 
@@ -411,13 +430,14 @@ public class GradientNavigationSceneManager : MonoBehaviour
         AppManager.Instance.Logger.LogEvent($"TRIGGER_PRESS");
     }
 
-    private void EndTrial(float success)
+    private void EndTrial(float currentIntensity, bool isSuccess)
     {
         if (state != SessionDataManager.GameState.Trial) return;
 
         SetState(SessionDataManager.GameState.Idle);
         trialComplete = true;
-        trialSuccessState = success;
+        trialFinalIntensity = currentIntensity;
+        trialSuccessState = isSuccess; 
     }
 
     // ------------------------------------------------------------------------
