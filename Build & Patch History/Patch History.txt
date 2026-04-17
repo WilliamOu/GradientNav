@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 1.1.0.0 - April 16, 2026
+- Added the ability for the administrator to visualize the current monetary amount and time remaining.
+
 Version 1.0.12.12 - April 14, 2026
 - Fixed a bug causing the UI state to be improperly aligned with the actual success metric. 
 

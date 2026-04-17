@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
+using TMPro;
 
 public class GradientNavigationSceneManager : MonoBehaviour
 {
@@ -9,13 +10,15 @@ public class GradientNavigationSceneManager : MonoBehaviour
     // STATE & VARIABLES
     // ------------------------------------------------------------------------
 
+    [SerializeField] private TMP_Text StaticText;
+
     // Current State
     private SessionDataManager.GameState state;
 
     // Trial Counters
     private int trialIndex;
     private int attemptsRemaining;
-    private float timeRemaining;
+    private float timeRemaining = 0.0f;
     private float trialFinalIntensity = -1;
     private bool trialSuccessState = false; 
     private bool trialComplete;
@@ -41,6 +44,9 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     private void Start()
     {
+        if (!AppManager.Instance.Settings.ExperimentalMode && !AppManager.Instance.Session.IsVRMode)
+            StaticText.gameObject.SetActive(false);
+        
         // AppManager.Instance.Utilities.MapVisualizer.ToggleMap(true);
         if (AppManager.Instance.Settings.ExperimentalMode || AppManager.Instance.Session.IsVRMode)
             AppManager.Instance.Utilities.Minimap.gameObject.SetActive(true);
@@ -68,6 +74,10 @@ public class GradientNavigationSceneManager : MonoBehaviour
         AppManager.Instance.Shadow.ManualUpdate();
         if (AppManager.Instance.Session.IsVRMode || AppManager.Instance.Settings.ExperimentalMode) 
             AppManager.Instance.Utilities.Minimap.ManualUpdate();
+
+        // Earning value has been embedded here in the static text
+        if (AppManager.Instance.Settings.ExperimentalMode || AppManager.Instance.Session.IsVRMode)
+            StaticText.text = $"Time Remaining: {timeRemaining.ToString("F0")}s\nCurrent Earnings: ${currentMoney.ToString("F2")}";
 
         // Input: Pause / Unpause
         if (GetPauseToggleInput())
