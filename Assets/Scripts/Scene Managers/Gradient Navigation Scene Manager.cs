@@ -10,7 +10,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
     // STATE & VARIABLES
     // ------------------------------------------------------------------------
 
-    [SerializeField] private TMP_Text StaticText;
+    [SerializeField] private TMP_Text DesktopStaticText;
 
     // Current State
     private SessionDataManager.GameState state;
@@ -24,8 +24,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
     private bool trialComplete;
 
     // Money earned
-    private float moneyPerSuccess = 5.0f;
-    private float currentMoney = 10.0f;
+    private float currentMoney = 0.0f;
 
     // Current Trial Data
     private Vector2 startXZ;
@@ -44,8 +43,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     private void Start()
     {
-        if (!AppManager.Instance.Settings.ExperimentalMode && !AppManager.Instance.Session.IsVRMode)
-            StaticText.gameObject.SetActive(false);
+        DesktopStaticText.gameObject.SetActive(true);
         
         // AppManager.Instance.Utilities.MapVisualizer.ToggleMap(true);
         if (AppManager.Instance.Settings.ExperimentalMode || AppManager.Instance.Session.IsVRMode)
@@ -76,8 +74,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
             AppManager.Instance.Utilities.Minimap.ManualUpdate();
 
         // Earning value has been embedded here in the static text
-        if (AppManager.Instance.Settings.ExperimentalMode || AppManager.Instance.Session.IsVRMode)
-            StaticText.text = $"Time Remaining: {timeRemaining.ToString("F0")}s\nCurrent Earnings: ${currentMoney.ToString("F2")}";
+        DesktopStaticText.text = $"Time Remaining: {timeRemaining.ToString("F0")}s\nCurrent Earnings: ${currentMoney.ToString("F2")}"; // TODO: Fix the fact that this does not display properly over the desktop UI.
+        if (AppManager.Instance.Session.IsVRMode) AppManager.Instance.Player.SetVRStaticUIMessage($"Time Remaining: {timeRemaining.ToString("F0")}s\nCurrent Earnings: ${currentMoney.ToString("F2")}");
 
         // Input: Pause / Unpause
         if (GetPauseToggleInput())
@@ -139,6 +137,9 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
     private IEnumerator RunAllTrials()
     {
+        // VARIABLE INITIALIZATION
+        currentMoney = AppManager.Instance.Settings.MoneyStart;
+
         AppManager.Instance.Logger.BeginLogging();
         AppManager.Instance.Shadow.BeginLogging();
 
@@ -149,10 +150,10 @@ public class GradientNavigationSceneManager : MonoBehaviour
         if (AppManager.Instance.Session.IsVRMode)
         {
             allowRecenter = true;
-            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.75f, 0f), new Vector2(4, 3));
             AppManager.Instance.Player.SetUIMessage("Recenter the room now if necessary by standing in the center and facing forward.\n(Press the select button on your right controller, or press either trigger key to skip this step)", Color.white, -1);
             yield return WaitForTriggerOrRightSelect();
-            AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.75f, 0f), new Vector2(4, 3));
             allowRecenter = false;
         }
 
@@ -245,7 +246,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
                     endStateMessage = (AppManager.Instance.Settings.UseAdditionalInformationOnTrialEndMessage)
                         ? $"Trial Success!\n(Stimulus: {trialFinalIntensity:F2})"
                         : "Trial Success!";
-                    currentMoney += moneyPerSuccess;
+                    currentMoney += AppManager.Instance.Settings.MoneyPerSuccess;
                 }
                 else
                 {
@@ -276,7 +277,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         SetState(SessionDataManager.GameState.Training);
         Debug.Log("Starting VR Training Phase...");
 
-        AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
+        AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.75f, 0f), new Vector2(4, 3));
         // Wait for Administrator
         if (!AppManager.Instance.Settings.ExperimentalMode)
         {
@@ -335,7 +336,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
         AppManager.Instance.Player.SetUIMessage("At the beginning of each trial, you will be asked to walk to a location, as specified by a red pillar.\n(Press either trigger key to continue)", Color.white, -1);
         yield return WaitForAnyTrigger();
 
-        AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
+        AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.75f, 0f), new Vector2(4, 3));
 
         // Orientation Trial (3m away)
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
@@ -346,30 +347,30 @@ public class GradientNavigationSceneManager : MonoBehaviour
         // Safety Walls
         /*if (AppManager.Instance.Settings.EnableSafetyWalls)
         {
-            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.75f, 0f), new Vector2(4, 3));
             AppManager.Instance.Player.SetUIMessage("Safety walls will warn you if you are too close to a wall. When prompted, walk to the pillar at the corner of the room.\n(Press either trigger key to continue)", Color.white, -1);
             yield return WaitForAnyTrigger();
-            AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.75f, 0f), new Vector2(4, 3));
             Vector2 cornerPos = GetClosestCornerInset(1f);
             yield return WalkOrientTo(cornerPos, false);
             SetState(SessionDataManager.GameState.Training);
-            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.75f, 0f), new Vector2(4, 3));
             AppManager.Instance.Player.SetUIMessage("Check to ensure the safety indicators appear.\n(Press either trigger key to continue)", Color.white, -1);
             yield return WaitForAnyTrigger();
-            AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.75f, 0f), new Vector2(4, 3));
         }*/
 
         // Pause Training
         if (AppManager.Instance.Settings.EnablePause)
         {
-            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.75f, 0f), new Vector2(4, 3));
             AppManager.Instance.Player.SetUIMessage("At any time you can pause the trial if you feel physical discomfort. Press the select button on your left hand to pause and unpause.", Color.white, -1);
 
             allowTrainingPause = true;
 
             // Wait for user to Pause
             yield return new WaitUntil(() => state == SessionDataManager.GameState.Paused);
-            AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
+            AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.75f, 0f), new Vector2(4, 3));
 
             // Wait for user to Unpause
             yield return new WaitUntil(() => state != SessionDataManager.GameState.Paused);
@@ -379,10 +380,10 @@ public class GradientNavigationSceneManager : MonoBehaviour
         }
 
         // Ready
-        AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.5f, 0f), new Vector2(4, 3));
+        AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.75f, 0f), new Vector2(4, 3));
         AppManager.Instance.Player.SetUIMessage("You are now ready to begin the study. You may proceed when ready.\n(Press either trigger key to continue)", Color.white, -1);
         yield return WaitForAnyTrigger();
-        AppManager.Instance.Player.ResizeTextWindow(new Vector3(-2f, -0.5f, 0f), new Vector2(3, 3));
+        AppManager.Instance.Player.ResizeTextWindow(new Vector3(0f, -0.75f, 0f), new Vector2(4, 3));
 
         AppManager.Instance.Player.SetUIMessage("", Color.white, -1);
     }

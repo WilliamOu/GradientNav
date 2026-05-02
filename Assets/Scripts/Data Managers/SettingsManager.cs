@@ -59,6 +59,8 @@ public class SettingsManager
     public float MapLength { get; private set; }
     public float MapWidth { get; private set; }
     public float TimeToSeek { get; private set; }
+    public float MoneyPerSuccess { get; private set; }
+    public float MoneyStart { get; private set; }
     public float SuccessThreshold { get; private set; }
     public bool UseMessageOnTrialEnd { get; private set; }
     public bool UseAdditionalInformationOnTrialEndMessage { get; private set; }
@@ -148,6 +150,24 @@ public class SettingsManager
             Name = "Time To Seek",
             Description = "The time (in seconds) allocated to the participant to find the brightest point.",
             Value = 180.0f,
+            Min = 0f,
+            Max = 9999f,
+        });
+
+        SettingsList.Add(new FloatSetting
+        {
+            Name = "Money Per Success",
+            Description = "The amount of money the participant earns per trial success.",
+            Value = 5.0f,
+            Min = 0f,
+            Max = 9999f,
+        });
+
+        SettingsList.Add(new FloatSetting
+        {
+            Name = "Money Start",
+            Description = "The amount of money the participant starts with.",
+            Value = 10.0f,
             Min = 0f,
             Max = 9999f,
         });
@@ -348,6 +368,8 @@ public class SettingsManager
         MapLength = GetSetting<FloatSetting>("Map Length")?.Value ?? 8.0f;
         MapWidth = GetSetting<FloatSetting>("Map Width")?.Value ?? 8.0f;
         TimeToSeek = GetSetting<FloatSetting>("Time To Seek")?.Value ?? 180.0f;
+        MoneyPerSuccess = GetSetting<FloatSetting>("Money Per Success")?.Value ?? 5.0f;
+        MoneyStart = GetSetting<FloatSetting>("Money Start")?.Value ?? 10.0f;
         SuccessThreshold = GetSetting<FloatSetting>("Success Threshold")?.Value ?? 0.9f;
         UseMessageOnTrialEnd = GetSetting<BoolSetting>("Use Message On Trial End")?.Value ?? true;
         UseAdditionalInformationOnTrialEndMessage = GetSetting<BoolSetting>("Use Additional Information On Trial End Message")?.Value ?? false;

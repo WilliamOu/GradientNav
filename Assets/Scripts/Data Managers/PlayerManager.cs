@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections;
 using UnityEngine.XR;
 using UnityEngine.XR.Interaction.Toolkit;
+using TMPro;
 
 public class PlayerManager : MonoBehaviour
 {
@@ -323,5 +324,15 @@ public class PlayerManager : MonoBehaviour
             activeUI.UIText.text = "";
 
         clearUITextCoroutine = null;
+    }
+
+    public void SetVRStaticUIMessage(string text)
+    {
+        if (!AppManager.Instance.Session.IsVRMode) { 
+            Debug.LogWarning("Not in VR; SetVRStaticUIMessage should not be called because the desktop player does not have an assigned static text element.");
+            return;
+        }
+
+        activeUI.StaticText.text = text ?? "";
     }
 }

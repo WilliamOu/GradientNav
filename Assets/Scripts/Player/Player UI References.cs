@@ -13,4 +13,5 @@ public class PlayerUIReferences : MonoBehaviour
     public Image Blackscreen;
     public CharacterController CController;
     public ActionBasedContinuousMoveProvider ContinuousMoveProvider;
+    public TMP_Text StaticText;
 }

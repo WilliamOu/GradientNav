@@ -2,6 +2,12 @@
 Patch History For GradientNav
 =============================
 
+Version 1.1.1.0 - May 2, 2026
+- Added monetary start and gain on sucess to the Settings.
+- Adjusted the minimap border to be pure black (to avoid optical illusions during a shifting grayscale background. 
+- VR text is now centered.
+- The VR participant can now see the timer. 
+
 Version 1.1.0.0 - April 16, 2026
 - Added the ability for the administrator to visualize the current monetary amount and time remaining.
 

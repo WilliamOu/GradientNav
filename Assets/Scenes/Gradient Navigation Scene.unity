@@ -166,7 +166,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 65308a045665071418cccc1a28bf1c61, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  StaticText: {fileID: 1963150271}
+  DesktopStaticText: {fileID: 1963150271}
 --- !u!1 &627450290
 GameObject:
   m_ObjectHideFlags: 0
