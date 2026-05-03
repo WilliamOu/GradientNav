@@ -181,7 +181,8 @@ public class MinimapRenderer : MonoBehaviour
     {
         if (playerIcon == null) return;
 
-        playerTransform = (playerTransform == null) ? AppManager.Instance.Player.CameraPosition() : playerTransform;
+        playerTransform ??= AppManager.Instance.Player.CameraPosition();
+        if (playerTransform == null) return;
 
         Vector3 camPos = playerTransform.position;
         Vector2 playerXZ = new Vector2(camPos.x, camPos.z);

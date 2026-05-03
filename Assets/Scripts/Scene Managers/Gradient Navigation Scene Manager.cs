@@ -49,12 +49,12 @@ public class GradientNavigationSceneManager : MonoBehaviour
         if (AppManager.Instance.Settings.ExperimentalMode || AppManager.Instance.Session.IsVRMode)
             AppManager.Instance.Utilities.Minimap.gameObject.SetActive(true);
 
-        if (!AppManager.Instance.Settings.DisplayVRTimerAndMoney) AppManager.Instance.Player.DisableVRStaticUIText();
-
         SetState(SessionDataManager.GameState.Idle);
 
         // Spawn the player at origin initially
         AppManager.Instance.Player.SpawnPlayer(Vector3.zero, Quaternion.identity);
+
+        if (!AppManager.Instance.Settings.DisplayVRTimerAndMoney) AppManager.Instance.Player.DisableVRStaticUIText();
 
         // Initialize the TrialManager (Loads CSV or preps Random Seed)
         AppManager.Instance.Trial.Init();
@@ -72,8 +72,10 @@ public class GradientNavigationSceneManager : MonoBehaviour
         // Always update passive systems
         AppManager.Instance.Logger.ManualUpdate();
         AppManager.Instance.Shadow.ManualUpdate();
-        if (AppManager.Instance.Session.IsVRMode || AppManager.Instance.Settings.ExperimentalMode) 
+        if ((AppManager.Instance.Session.IsVRMode || AppManager.Instance.Settings.ExperimentalMode) && AppManager.Instance.Player.PlayerSpawned)
+        {
             AppManager.Instance.Utilities.Minimap.ManualUpdate();
+        }
 
         // Earning value has been embedded here in the static text
         DesktopStaticText.text = $"Time Remaining: {timeRemaining.ToString("F0")}s\nCurrent Earnings: ${currentMoney.ToString("F2")}"; // TODO: Fix the fact that this does not display properly over the desktop UI.

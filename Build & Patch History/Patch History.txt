@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 1.1.1.4 - May 3, 2026
+- Fixed a race condition where the VR static display was being disabled before the player was spawned. 
+
 Version 1.1.1.3 - May 3, 2026
 - Fixed a null reference error with the VR static display background. 
 
