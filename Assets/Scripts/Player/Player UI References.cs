@@ -14,4 +14,5 @@ public class PlayerUIReferences : MonoBehaviour
     public CharacterController CController;
     public ActionBasedContinuousMoveProvider ContinuousMoveProvider;
     public TMP_Text StaticText;
+    public GameObject StaticTextObject;
 }

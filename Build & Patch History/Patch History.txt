@@ -2,6 +2,9 @@
 Patch History For GradientNav
 =============================
 
+Version 1.1.1.2 - May 3, 2026
+- Fixed the text box not being displayed. 
+
 Version 1.1.1.1 - May 3, 2026
 - Adjusted the VR static display text color to be less distracting.
 - Added an option to toggle the VR static display. 

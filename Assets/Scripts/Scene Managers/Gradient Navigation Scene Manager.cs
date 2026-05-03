@@ -49,6 +49,8 @@ public class GradientNavigationSceneManager : MonoBehaviour
         if (AppManager.Instance.Settings.ExperimentalMode || AppManager.Instance.Session.IsVRMode)
             AppManager.Instance.Utilities.Minimap.gameObject.SetActive(true);
 
+        if (!AppManager.Instance.Settings.DisplayVRTimerAndMoney) AppManager.Instance.Player.DisableVRStaticUIText();
+
         SetState(SessionDataManager.GameState.Idle);
 
         // Spawn the player at origin initially

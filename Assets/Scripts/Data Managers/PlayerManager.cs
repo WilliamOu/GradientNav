@@ -335,4 +335,26 @@ public class PlayerManager : MonoBehaviour
 
         activeUI.StaticText.text = text ?? "";
     }
+
+    public void EnableVRStaticUIText()
+    {
+        if (!AppManager.Instance.Session.IsVRMode)
+        {
+            Debug.LogWarning("Not in VR; EnableVRStaticUIText should not be called because the desktop player does not have an assigned static text element.");
+            return;
+        }
+
+        activeUI.StaticTextObject.SetActive(true);
+    }
+
+    public void DisableVRStaticUIText()
+    {
+        if (!AppManager.Instance.Session.IsVRMode)
+        {
+            Debug.LogWarning("Not in VR; DisableVRStaticUIText should not be called because the desktop player does not have an assigned static text element.");
+            return;
+        }
+
+        activeUI.StaticTextObject.SetActive(false);
+    }
 }
