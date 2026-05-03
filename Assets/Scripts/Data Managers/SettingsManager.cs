@@ -61,6 +61,7 @@ public class SettingsManager
     public float TimeToSeek { get; private set; }
     public float MoneyPerSuccess { get; private set; }
     public float MoneyStart { get; private set; }
+    public bool DisplayVRTimerAndMoney { get; private set; }
     public float SuccessThreshold { get; private set; }
     public bool UseMessageOnTrialEnd { get; private set; }
     public bool UseAdditionalInformationOnTrialEndMessage { get; private set; }
@@ -170,6 +171,13 @@ public class SettingsManager
             Value = 10.0f,
             Min = 0f,
             Max = 9999f,
+        });
+
+        SettingsList.Add(new BoolSetting
+        {
+            Name = "Display VR Timer and Money",
+            Description = "Displays the time remaining and money earned to the participant in VR.",
+            Value = true,
         });
 
         SettingsList.Add(new FloatSetting
@@ -370,6 +378,7 @@ public class SettingsManager
         TimeToSeek = GetSetting<FloatSetting>("Time To Seek")?.Value ?? 180.0f;
         MoneyPerSuccess = GetSetting<FloatSetting>("Money Per Success")?.Value ?? 5.0f;
         MoneyStart = GetSetting<FloatSetting>("Money Start")?.Value ?? 10.0f;
+        DisplayVRTimerAndMoney = GetSetting<BoolSetting>("Display VR Timer and Money")?.Value ?? true;
         SuccessThreshold = GetSetting<FloatSetting>("Success Threshold")?.Value ?? 0.9f;
         UseMessageOnTrialEnd = GetSetting<BoolSetting>("Use Message On Trial End")?.Value ?? true;
         UseAdditionalInformationOnTrialEndMessage = GetSetting<BoolSetting>("Use Additional Information On Trial End Message")?.Value ?? false;

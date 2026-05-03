@@ -75,7 +75,7 @@ public class GradientNavigationSceneManager : MonoBehaviour
 
         // Earning value has been embedded here in the static text
         DesktopStaticText.text = $"Time Remaining: {timeRemaining.ToString("F0")}s\nCurrent Earnings: ${currentMoney.ToString("F2")}"; // TODO: Fix the fact that this does not display properly over the desktop UI.
-        if (AppManager.Instance.Session.IsVRMode) AppManager.Instance.Player.SetVRStaticUIMessage($"Time Remaining: {timeRemaining.ToString("F0")}s\nCurrent Earnings: ${currentMoney.ToString("F2")}");
+        if (AppManager.Instance.Session.IsVRMode && AppManager.Instance.Settings.DisplayVRTimerAndMoney) AppManager.Instance.Player.SetVRStaticUIMessage($"Time Remaining: {timeRemaining.ToString("F0")}s\nCurrent Earnings: ${currentMoney.ToString("F2")}");
 
         // Input: Pause / Unpause
         if (GetPauseToggleInput())
