@@ -967,6 +967,7 @@ MonoBehaviour:
   CController: {fileID: 2091745175293670861}
   ContinuousMoveProvider: {fileID: 4177084686996430026}
   StaticText: {fileID: 4207435656321385935}
+  StaticTextObject: {fileID: 4684636808524205822}
 --- !u!1 &3765458552164141261
 GameObject:
   m_ObjectHideFlags: 0
