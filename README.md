@@ -8,6 +8,11 @@ The participant is tasked with a sensory substitution/augmentation task. Only ab
 
 Trials can be generated randomly, via a seed, or using a preset CSV specifying a list of trials. 
 
+This study supports the usage of the Shadow Mocap Suit. 
+
+# Usage and Development
+For information on using the program and for development, see `/Docs`.
+
 # Attribution
 This project is licensed under the Apache License 2.0. 
 
